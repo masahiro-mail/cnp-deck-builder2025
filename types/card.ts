@@ -16,6 +16,7 @@ export interface Card {
   effectType?: string
   effect?: string
   flavorText?: string
+  illustrator?: string
 }
 
 type CardType = "ユニット" | "イベント" | "サポーター"
