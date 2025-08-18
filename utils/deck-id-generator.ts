@@ -35,10 +35,20 @@ for (const [digits, char] of Object.entries(DIGIT_PAIRS_TO_CHAR)) {
   CHAR_TO_DIGIT_PAIRS[char] = digits
 }
 
-// デッキ全体からIDを生成する関数
+// デッキ全体からIDを生成する関数（新形式BKプレフィックス）
 export function generateDeckId(cardIds: string[]): string {
-  // カードの出現回数をカウント（0-4枚）- 198枚に拡張（BT1:116 + BT2:82）
-  const cardCounts: number[] = Array(198).fill(0)
+  return generateDeckIdWithPrefix(cardIds, 'bk')
+}
+
+// 旧形式との互換性のためのBTプレフィックス版
+export function generateLegacyDeckId(cardIds: string[]): string {
+  return generateDeckIdWithPrefix(cardIds, 'bt')
+}
+
+// 内部関数：プレフィックスを指定してIDを生成
+function generateDeckIdWithPrefix(cardIds: string[], prefix: 'bt' | 'bk'): string {
+  // カードの出現回数をカウント（0-4枚）- 199枚に拡張（BT1:116 + P-1:1 + BT2:82）
+  const cardCounts: number[] = Array(199).fill(0)
 
   cardIds.forEach((id) => {
     let internalNumber = 0
@@ -59,23 +69,32 @@ export function generateDeckId(cardIds: string[]): string {
       if (match) {
         const cardNumber = Number.parseInt(match[1], 10)
         if (cardNumber >= 1 && cardNumber <= 82) {
-          internalNumber = 116 + cardNumber // BT2-1 -> 117, BT2-82 -> 198
+          internalNumber = 117 + cardNumber // BT2-1 -> 118, BT2-82 -> 199
         }
       }
     }
     // 既存の形式（数字のみ、P-1など）の後方互換性
     else {
-      const match = id.match(/(\d+)(?:p|sp)?$/)
-      if (match) {
-        const cardNumber = Number.parseInt(match[1], 10)
-        if (cardNumber >= 1 && cardNumber <= 116) {
-          internalNumber = cardNumber
+      // P-1の特別処理を最初に行う
+      if (id === "P-1") {
+        if (prefix === 'bk') {
+          internalNumber = 117 // BK形式：P-1は117番スロット（独立）
+        } else {
+          internalNumber = 1   // BT形式：P-1は1番スロット（BT1-1と共有）
+        }
+      } else {
+        const match = id.match(/^(\d+)(?:p|sp)?$/)
+        if (match) {
+          const cardNumber = Number.parseInt(match[1], 10)
+          if (cardNumber >= 1 && cardNumber <= 116) {
+            internalNumber = cardNumber
+          }
         }
       }
     }
 
     // 有効な番号の場合はカウントアップ
-    if (internalNumber > 0 && internalNumber <= 198) {
+    if (internalNumber > 0 && internalNumber <= 199) {
       cardCounts[internalNumber - 1]++
       // 4枚を超える場合は4枚に制限
       if (cardCounts[internalNumber - 1] > 4) {
@@ -85,12 +104,12 @@ export function generateDeckId(cardIds: string[]): string {
   })
 
   // 2桁ずつ組み合わせて文字に変換
-  let encodedId = "bt" // 先頭に "bt" を付ける
+  let encodedId = prefix // 先頭にプレフィックスを付ける
 
-  // 198枚のカードを2枚ずつペアにして処理
-  for (let i = 0; i < 198; i += 2) {
-    // 最後の1枚が余る場合（197枚目）
-    if (i === 197) {
+  // 199枚のカードを2枚ずつペアにして処理
+  for (let i = 0; i < 199; i += 2) {
+    // 最後の1枚が余る場合（199枚目）
+    if (i === 198) {
       // 最後の1枚は単独で処理
       const lastDigit = cardCounts[i].toString()
       // 最後の1桁は0-4の数字をそのまま使用
@@ -117,19 +136,32 @@ export function generateDeckId(cardIds: string[]): string {
 
 // デッキIDからカードIDのリストを復元する関数
 export function decodeDeckId(deckId: string, allCardIds: string[]): string[] {
+  // プレフィックスを判定して適切な処理を選択
+  if (deckId.startsWith("bk")) {
+    return decodeDeckIdWithPrefix(deckId, allCardIds, 'bk')
+  } else if (deckId.startsWith("bt")) {
+    return decodeDeckIdWithPrefix(deckId, allCardIds, 'bt')
+  } else {
+    console.warn("Unknown deck ID prefix")
+    return []
+  }
+}
+
+// 内部関数：プレフィックスを指定してデコード
+function decodeDeckIdWithPrefix(deckId: string, allCardIds: string[], prefix: 'bt' | 'bk'): string[] {
   try {
-    // 先頭の "bt" を削除
-    if (deckId.startsWith("bt")) {
-      deckId = deckId.substring(2)
+    // 先頭のプレフィックスを削除
+    if (deckId.startsWith(prefix)) {
+      deckId = deckId.substring(prefix.length)
     } else {
-      console.warn("Deck ID does not start with 'bt'")
+      console.warn(`Deck ID does not start with '${prefix}'`)
       return []
     }
 
-    // 後方互換性：古い形式（58-59文字）と新形式（98-99文字）を判定
+    // 後方互換性：古い形式（58-59文字）と新形式（99-100文字）を判定
     const isLegacyFormat = deckId.length <= 59
-    const expectedMinLength = isLegacyFormat ? 58 : 98
-    const maxCards = isLegacyFormat ? 116 : 198
+    const expectedMinLength = isLegacyFormat ? 58 : 99
+    const maxCards = isLegacyFormat ? 116 : 199
 
     // 長さチェック
     if (deckId.length < expectedMinLength) {
@@ -143,7 +175,7 @@ export function decodeDeckId(deckId: string, allCardIds: string[]): string[] {
     for (let i = 0; i < deckId.length; i++) {
       const char = deckId[i]
 
-      // 最後の1文字が数字の場合（116枚目または198枚目のカード）
+      // 最後の1文字が数字の場合（116枚目または199枚目のカード）
       if (i === deckId.length - 1 && /[0-4]/.test(char)) {
         cardCounts.push(Number.parseInt(char, 10))
         break
@@ -181,7 +213,7 @@ export function decodeDeckId(deckId: string, allCardIds: string[]): string[] {
       const internalNumber = i + 1
 
       // 対応するカードIDを見つける
-      const cardId = findCardIdByInternalNumber(internalNumber, allCardIds)
+      const cardId = findCardIdByInternalNumber(internalNumber, allCardIds, prefix)
 
       if (cardId && count > 0) {
         // 指定された枚数だけカードを追加
@@ -199,11 +231,28 @@ export function decodeDeckId(deckId: string, allCardIds: string[]): string[] {
   }
 }
 
-// 内部番号からカードIDを見つける関数（BT1/BT2対応）
-function findCardIdByInternalNumber(internalNumber: number, allCardIds: string[]): string | null {
+// 内部番号からカードIDを見つける関数（BT1/P-1/BT2対応）
+function findCardIdByInternalNumber(internalNumber: number, allCardIds: string[], prefix: 'bt' | 'bk' = 'bk'): string | null {
   // BT1カードの範囲（1-116）
   if (internalNumber >= 1 && internalNumber <= 116) {
-    // BT1-X形式を優先して探す
+    // BT形式の場合は1番スロットでP-1とBT1-1が競合するため特別処理
+    if (prefix === 'bt' && internalNumber === 1) {
+      // BT形式ではBT1-1を優先
+      for (const cardId of allCardIds) {
+        const match = cardId.match(/^BT1-1(?:p|sp)?$/)
+        if (match) {
+          return cardId
+        }
+      }
+      // BT1-1がない場合はP-1を探す
+      const p1Card = allCardIds.find(cardId => cardId === "P-1")
+      if (p1Card) {
+        return p1Card
+      }
+    }
+    // BK形式では1番スロットはBT1-1のみ（P-1は117番スロット）
+    
+    // 上記以外のBT1カードを探す
     for (const cardId of allCardIds) {
       const match = cardId.match(/^BT1-(\d+)(?:p|sp)?$/)
       if (match && Number.parseInt(match[1], 10) === internalNumber) {
@@ -220,9 +269,16 @@ function findCardIdByInternalNumber(internalNumber: number, allCardIds: string[]
       }
     }
   }
-  // BT2カードの範囲（117-198 -> BT2-1-82）
-  else if (internalNumber >= 117 && internalNumber <= 198) {
-    const bt2Number = internalNumber - 116 // 117 -> 1, 198 -> 82
+  // P-1カード（117番スロット）
+  else if (internalNumber === 117) {
+    const p1Card = allCardIds.find(cardId => cardId === "P-1")
+    if (p1Card) {
+      return p1Card
+    }
+  }
+  // BT2カードの範囲（118-199 -> BT2-1-82）
+  else if (internalNumber >= 118 && internalNumber <= 199) {
+    const bt2Number = internalNumber - 117 // 118 -> 1, 199 -> 82
     for (const cardId of allCardIds) {
       const match = cardId.match(/^BT2-(\d+)(?:p|sp)?$/)
       if (match && Number.parseInt(match[1], 10) === bt2Number) {
@@ -236,7 +292,7 @@ function findCardIdByInternalNumber(internalNumber: number, allCardIds: string[]
 
 // 後方互換性のため古い関数名も残す
 function findCardIdByNumber(cardNumber: number, allCardIds: string[]): string | null {
-  return findCardIdByInternalNumber(cardNumber, allCardIds)
+  return findCardIdByInternalNumber(cardNumber, allCardIds, 'bk')
 }
 
 // デッキIDをフォーマットする関数
@@ -256,16 +312,16 @@ export function analyzeDeckId(deckId: string): string {
 
     // 後方互換性：古い形式と新形式を判定
     const isLegacyFormat = deckId.length <= 59
-    const maxCards = isLegacyFormat ? 116 : 198
+    const maxCards = isLegacyFormat ? 116 : 199
 
-    let result = `デッキID解析結果 (${isLegacyFormat ? '旧形式' : '新形式'}):\n`
+    let result = `デッキID解析結果 (${prefix.toUpperCase()}形式 - ${isLegacyFormat ? '旧形式' : '新形式'}):\n`
     const cardCounts: number[] = []
 
     // 文字を2桁の数字に変換
     for (let i = 0; i < deckId.length; i++) {
       const char = deckId[i]
 
-      // 最後の1文字が数字の場合（116枚目または198枚目のカード）
+      // 最後の1文字が数字の場合（116枚目または199枚目のカード）
       if (i === deckId.length - 1 && /[0-4]/.test(char)) {
         const count = Number.parseInt(char, 10)
         cardCounts.push(count)
@@ -284,13 +340,17 @@ export function analyzeDeckId(deckId: string): string {
         cardCounts.push(count1)
         cardCounts.push(count2)
 
-        // BT1/BT2の表示を区別
+        // BT1/P-1/BT2の表示を区別
         const card1Display = cardIndex1 + 1 <= 116 ? 
           `BT1-${cardIndex1 + 1}` : 
-          `BT2-${cardIndex1 + 1 - 116}`
+          cardIndex1 + 1 === 117 ? 
+          `P-1` : 
+          `BT2-${cardIndex1 + 1 - 117}`
         const card2Display = cardIndex2 + 1 <= 116 ? 
           `BT1-${cardIndex2 + 1}` : 
-          `BT2-${cardIndex2 + 1 - 116}`
+          cardIndex2 + 1 === 117 ? 
+          `P-1` : 
+          `BT2-${cardIndex2 + 1 - 117}`
 
         result += `${card1Display}: ${count1}枚, ${card2Display}: ${count2}枚\n`
       } else {
