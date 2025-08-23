@@ -1,0 +1,76 @@
+// 正しいBT2データ - 一時的なJavaScriptファイル
+const bt2CardsData = [
+  {
+    id: "BT2-1",
+    name: "アクアノーヴァの野良猫",
+    type: "ユニット",
+    cost: 3,
+    bp: "5000",
+    sp: undefined,
+    ability: undefined,
+    description: "自由になった元飼い猫は猫社会の頂点を目指して奔走する。",
+    faction: "アクアノーヴァ/アニマル",
+    illustrator: "コメスケ / すとぽぷ",
+    imageUrl: "/card-images/bt2-1.png",
+    color: "blue",
+    rarity: "C",
+    cardNumber: "BT2-1",
+    colorBalance: "青1",
+    colorCost: 1,
+    colorlessCost: 2,
+    effectType: [],
+    pack: "魂魄の冥導士",
+    traits: ["アクアノーヴァ", "アニマル"]
+  },
+  {
+    id: "BT2-2",
+    name: "ブルー",
+    type: "ユニット",
+    cost: 4,
+    bp: "5000",
+    sp: undefined,
+    ability: "【登場時】ターン終了まで、相手のユニット1体をコスト-1。",
+    description: "青い姿に変化したルナ。一見、海の多いアクアノーヴァでの擬態に役立ちそうだが、微妙に色が浮いていてすぐに見つかってしまう。",
+    faction: "ルナ/CNP",
+    illustrator: "コメスケ / Urukun",
+    imageUrl: "/card-images/bt2-2.png",
+    color: "blue",
+    rarity: "RR",
+    cardNumber: "BT2-2",
+    colorBalance: "青2",
+    colorCost: 2,
+    colorlessCost: 2,
+    effectType: ["コスト減少"],
+    pack: "魂魄の冥導士",
+    traits: ["ルナ", "CNP"],
+    effect: "【登場時】ターン終了まで、相手のユニット1体をコスト-1。",
+    flavorText: "青い姿に変化したルナ。一見、海の多いアクアノーヴァでの擬態に役立ちそうだが、微妙に色が浮いていてすぐに見つかってしまう。"
+  },
+  {
+    id: "BT2-3",
+    name: "ルナ",
+    type: "ユニット", 
+    cost: 4,
+    bp: "5000",
+    sp: "1000",
+    ability: undefined,
+    description: "無尽蔵に式神を操るミカヅキ。その異常なレイキの源が神器であることを突き止めたルナは、神器を取り返すべく単身乗り込んだ。",
+    faction: "ルナ/CNP",
+    illustrator: "コメスケ / SHU-",
+    imageUrl: "/card-images/bt2-3.png",
+    color: "blue",
+    rarity: "C",
+    cardNumber: "BT2-3",
+    colorBalance: "青1",
+    colorCost: 1,
+    colorlessCost: 3,
+    effectType: [],
+    pack: "魂魄の冥導士",
+    traits: ["ルナ", "CNP"],
+    flavorText: "無尽蔵に式神を操るミカヅキ。その異常なレイキの源が神器であることを突き止めたルナは、神器を取り返すべく単身乗り込んだ。"
+  }
+];
+
+// 続き... (一旦小さなセットでテスト)
+console.log('BT2データ作成中...');
+console.log('作成予定カード数:', 82);

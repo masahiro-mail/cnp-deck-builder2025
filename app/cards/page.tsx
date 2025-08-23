@@ -171,6 +171,36 @@ export default function CardsPage() {
             comparison = a.name.localeCompare(b.name)
           }
           break
+        case "cardId":
+          // カードIDの数値順でソート（BT1-1, BT1-2, ..., P-1, BT2-1, BT2-2, ...）
+          const extractCardNumber = (id: string): [string, number] => {
+            if (id === "P-1") return ["P", 1]
+            const match = id.match(/^(BT\d+)-(\d+)/)
+            if (match) {
+              return [match[1], parseInt(match[2], 10)]
+            }
+            // フォールバック：数字のみのID
+            const numMatch = id.match(/^(\d+)/)
+            if (numMatch) {
+              return ["BT1", parseInt(numMatch[1], 10)]
+            }
+            return ["", 0]
+          }
+          
+          const [seriesA, numberA] = extractCardNumber(a.id)
+          const [seriesB, numberB] = extractCardNumber(b.id)
+          
+          // まずシリーズでソート（BT1 < P < BT2）
+          const seriesOrder = { "BT1": 1, "P": 2, "BT2": 3 }
+          const seriesCompare = (seriesOrder[seriesA as keyof typeof seriesOrder] || 0) - (seriesOrder[seriesB as keyof typeof seriesOrder] || 0)
+          
+          if (seriesCompare !== 0) {
+            comparison = seriesCompare
+          } else {
+            // 同じシリーズ内では番号順
+            comparison = numberA - numberB
+          }
+          break
         default:
           comparison = 0
       }
@@ -334,6 +364,7 @@ export default function CardsPage() {
                 </SelectTrigger>
                 <SelectContent className="bg-black border-blue-700 text-blue-300">
                   <SelectItem value="name">カード名</SelectItem>
+                  <SelectItem value="cardId">カードID順</SelectItem>
                   <SelectItem value="cost">コスト</SelectItem>
                   <SelectItem value="colorCost">指定色コスト</SelectItem>
                   <SelectItem value="colorlessCost">無色コスト</SelectItem>

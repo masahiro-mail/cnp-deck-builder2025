@@ -7,16 +7,17 @@ export interface Card {
   cost: number
   bp?: number
   sp?: number // 助太刀ポイント
-  colorBalance?: string
-  specificColor?: CardColor
-  specificColorCost?: number
-  colorlessCost?: number
-  traits?: string[]
-  pack: string
-  effectType?: string
-  effect?: string
-  flavorText?: string
+  ability?: string
+  description?: string
+  faction?: string
   illustrator?: string
+  imageUrl?: string
+  cardNumber?: string
+  colorBalance?: string
+  colorCost?: number
+  colorlessCost?: number
+  effectType?: string[]
+  pack: string
 }
 
 type CardType = "ユニット" | "イベント" | "サポーター"
