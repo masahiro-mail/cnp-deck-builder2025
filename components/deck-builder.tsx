@@ -1,20 +1,43 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import type { Card } from "@/types/card"
 import CardComponent from "./card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shuffle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+import { generateDeckId } from "@/utils/deck-id-generator"
+import { Shuffle, Save, Download } from "lucide-react"
 
 interface DeckBuilderProps {
   cards: Card[]
 }
 
 export default function DeckBuilder({ cards }: DeckBuilderProps) {
+  const { data: session } = useSession()
+  const { toast } = useToast()
   const [selectedColor, setSelectedColor] = useState<"blue" | "red" | "yellow" | "green">("blue")
   const [deck, setDeck] = useState<Card[]>([])
   const [filteredCards, setFilteredCards] = useState<Card[]>([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [deckName, setDeckName] = useState("")
+  const [deckDescription, setDeckDescription] = useState("")
+  const [isPublic, setIsPublic] = useState(false)
 
   // 色に基づいてカードをフィルタリング
   useEffect(() => {
@@ -64,6 +87,120 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
   // デッキをシャッフル
   const shuffleDeck = () => {
     setDeck([...deck].sort(() => Math.random() - 0.5))
+  }
+
+  // デッキをサーバーに保存
+  const saveDeckToServer = async () => {
+    if (!session) {
+      toast({
+        title: "ログインが必要です",
+        description: "デッキを保存するにはTwitterでログインしてください",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!deckName.trim()) {
+      toast({
+        title: "デッキ名が必要です",
+        description: "デッキ名を入力してください",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (deck.length === 0) {
+      toast({
+        title: "デッキが空です",
+        description: "まずデッキを作成してください",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      // デッキIDを生成
+      const deckId = generateDeckId(deck, cards)
+
+      const response = await fetch('/api/decks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deck_name: deckName,
+          deck_id: deckId,
+          description: deckDescription,
+          is_public: isPublic,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save deck')
+      }
+
+      const savedDeck = await response.json()
+
+      toast({
+        title: "デッキを保存しました",
+        description: `「${deckName}」がサーバーに保存されました`,
+      })
+
+      // フォームをリセット
+      setDeckName("")
+      setDeckDescription("")
+      setIsPublic(false)
+      setIsDialogOpen(false)
+
+    } catch (error) {
+      console.error('Error saving deck:', error)
+      toast({
+        title: "保存に失敗しました",
+        description: "デッキの保存中にエラーが発生しました",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // デッキIDをダウンロード（既存機能）
+  const downloadDeckId = () => {
+    if (deck.length === 0) {
+      toast({
+        title: "デッキが空です",
+        description: "まずデッキを作成してください",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const deckId = generateDeckId(deck, cards)
+      const blob = new Blob([deckId], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${selectedColor}_deck_${new Date().toISOString().slice(0, 10)}.txt`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      toast({
+        title: "デッキIDをダウンロードしました",
+        description: "デッキIDがテキストファイルとしてダウンロードされました",
+      })
+    } catch (error) {
+      console.error('Error generating deck ID:', error)
+      toast({
+        title: "エラー",
+        description: "デッキIDの生成に失敗しました",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -131,10 +268,85 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
         </Button>
 
         {deck.length > 0 && (
-          <Button onClick={shuffleDeck} variant="outline" size="lg" className="flex items-center gap-2">
-            <Shuffle size={16} />
-            デッキをシャッフル
-          </Button>
+          <>
+            <Button onClick={shuffleDeck} variant="outline" size="lg" className="flex items-center gap-2">
+              <Shuffle size={16} />
+              デッキをシャッフル
+            </Button>
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg" className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+                  <Save size={16} />
+                  サーバーに保存
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>デッキを保存</DialogTitle>
+                  <DialogDescription>
+                    あなたのデッキをサーバーに保存します。{session ? `@${session.user?.username} としてログイン中` : "ログインが必要です"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="deck-name" className="text-right">
+                      デッキ名
+                    </Label>
+                    <Input
+                      id="deck-name"
+                      value={deckName}
+                      onChange={(e) => setDeckName(e.target.value)}
+                      className="col-span-3"
+                      placeholder="例: 青属性アグロデッキ"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="deck-description" className="text-right">
+                      説明
+                    </Label>
+                    <Textarea
+                      id="deck-description"
+                      value={deckDescription}
+                      onChange={(e) => setDeckDescription(e.target.value)}
+                      className="col-span-3"
+                      placeholder="デッキのコンセプトや戦術を説明..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="is-public" className="text-right">
+                      公開設定
+                    </Label>
+                    <div className="col-span-3 flex items-center space-x-2">
+                      <Switch
+                        id="is-public"
+                        checked={isPublic}
+                        onCheckedChange={setIsPublic}
+                      />
+                      <Label htmlFor="is-public">
+                        {isPublic ? "公開（他のユーザーも閲覧可能）" : "非公開（自分のみ）"}
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={saveDeckToServer} disabled={isSaving}>
+                    {isSaving ? "保存中..." : "保存"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button 
+              onClick={downloadDeckId} 
+              variant="outline" 
+              size="lg" 
+              className="flex items-center gap-2"
+            >
+              <Download size={16} />
+              デッキIDダウンロード
+            </Button>
+          </>
         )}
       </div>
 
