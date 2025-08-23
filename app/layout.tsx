@@ -5,8 +5,9 @@ import "./globals.css"
 import Link from "next/link"
 import { ModeToggle } from "@/components/mode-toggle"
 import { ThemeProvider } from "@/components/theme-provider"
-import { SessionProvider } from "next-auth/react"
+import AuthSessionProvider from "@/components/session-provider"
 import AuthButton from "@/components/auth-button"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -24,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-gray-50 dark:bg-gray-950`}>
-        <SessionProvider>
+        <AuthSessionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             <header className="bg-black dark:bg-black text-white p-4 flex justify-between items-center">
               <div className="flex items-center space-x-2">
@@ -46,8 +47,9 @@ export default function RootLayout({
               </div>
             </header>
             <main>{children}</main>
+            <Toaster />
           </ThemeProvider>
-        </SessionProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   )
