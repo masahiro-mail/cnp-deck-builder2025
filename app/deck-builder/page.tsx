@@ -122,13 +122,13 @@ export default function DeckBuilderPage() {
   const [availableDecks, setAvailableDecks] = useState<any[]>([])
   const [selectedLoadDeck, setSelectedLoadDeck] = useState<string>("")
   
-  // レイキカードシステム
+  // レイキカードシステム（デフォルト値：各色3枚、合計15枚）
   const [raikiCards, setRaikiCards] = useState<Record<string, number>>({
-    blue: 0,    // 青
-    red: 0,     // 赤  
-    yellow: 0,  // 黄
-    green: 0,   // 緑
-    purple: 0   // 紫
+    blue: 3,    // 青
+    red: 3,     // 赤  
+    yellow: 3,  // 黄
+    green: 3,   // 緑
+    purple: 3   // 紫
   })
 
   // 効果分類、収録パック、レアリティの一覧
@@ -285,8 +285,8 @@ export default function DeckBuilderPage() {
         if (selectedDeck.raiki_cards && typeof selectedDeck.raiki_cards === 'object') {
           setRaikiCards(selectedDeck.raiki_cards)
         } else {
-          // デフォルト値にリセット
-          setRaikiCards({ blue: 0, red: 0, yellow: 0, green: 0, purple: 0 })
+          // デフォルト値にリセット（各色3枚、合計15枚）
+          setRaikiCards({ blue: 3, red: 3, yellow: 3, green: 3, purple: 3 })
         }
         
         toast({

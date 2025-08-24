@@ -24,11 +24,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Deck name and deck ID are required' }, { status: 400 })
     }
 
-    // Raiki cardsの検証（5色合計15枚）
-    if (raiki_cards) {
+    // Raiki cardsのデフォルト値設定と検証
+    let finalRaikiCards = raiki_cards
+    if (!raiki_cards || typeof raiki_cards !== 'object') {
+      // デフォルト値: 各色3枚 (3x5=15)
+      finalRaikiCards = { blue: 3, red: 3, yellow: 3, green: 3, purple: 3 }
+    } else {
       const total = Object.values(raiki_cards).reduce((sum: number, count: any) => sum + (Number(count) || 0), 0)
       if (total !== 15) {
-        return NextResponse.json({ error: 'Raiki cards must total exactly 15 cards' }, { status: 400 })
+        return NextResponse.json({ 
+          error: `Raiki cards must total exactly 15 cards (current total: ${total})`,
+          received_raiki_cards: raiki_cards
+        }, { status: 400 })
       }
     }
 
@@ -61,7 +68,7 @@ export async function POST(request: NextRequest) {
       deck_id,
       description,
       is_public,
-      raiki_cards
+      raiki_cards: finalRaikiCards
     })
     
     console.log('Deck saved successfully with Supabase:', savedDeck)

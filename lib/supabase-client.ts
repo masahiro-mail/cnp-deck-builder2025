@@ -60,9 +60,15 @@ export async function saveDeckSupabase(deckData: {
 
     if (error) throw error
     return data[0]
-  } catch (error) {
+  } catch (error: any) {
     console.error('Supabase save deck error:', error)
-    throw error
+    console.error('Deck data being saved:', deckData)
+    
+    // より詳細なエラー情報を提供
+    const errorMessage = error?.message || 'Unknown Supabase error'
+    const errorCode = error?.code || 'UNKNOWN'
+    
+    throw new Error(`Database save failed: ${errorMessage} (${errorCode})`)
   }
 }
 
