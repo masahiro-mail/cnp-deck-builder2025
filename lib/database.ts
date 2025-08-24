@@ -1,16 +1,27 @@
 import { Pool } from 'pg'
 
 // Supabaseの接続文字列を解析
-const connectionString = process.env.DATABASE_URL
+let connectionString = process.env.DATABASE_URL
+
+// SSL証明書問題の回避：接続文字列にsslmode=requireを強制追加
+if (connectionString && process.env.NODE_ENV === 'production') {
+  // 既存のクエリパラメータがある場合とない場合に対応
+  if (connectionString.includes('?')) {
+    connectionString += '&sslmode=require'
+  } else {
+    connectionString += '?sslmode=require'
+  }
+}
 
 // PostgreSQL接続プール - Supabase用設定
 const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' ? {
     rejectUnauthorized: false,
-    ca: undefined,
+    requestCert: false,
+    agent: false,
   } : false,
-  max: 10, // Supabaseの推奨値
+  max: 10,
   min: 0,
   acquireTimeoutMillis: 60000,
   idleTimeoutMillis: 600000,
