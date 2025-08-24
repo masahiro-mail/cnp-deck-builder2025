@@ -1,15 +1,19 @@
 import { Pool } from 'pg'
 
-// PostgreSQL接続プール
+// Supabaseの接続文字列を解析
+const connectionString = process.env.DATABASE_URL
+
+// PostgreSQL接続プール - Supabase用設定
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { 
+  connectionString,
+  ssl: process.env.NODE_ENV === 'production' ? {
     rejectUnauthorized: false,
-    mode: 'require'
+    ca: undefined,
   } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000, // タイムアウトを10秒に延長
+  max: 10, // Supabaseの推奨値
+  min: 0,
+  acquireTimeoutMillis: 60000,
+  idleTimeoutMillis: 600000,
 })
 
 // ユーザー型定義
@@ -264,21 +268,29 @@ export async function getPublicDecks(limit: number = 10, offset: number = 0): Pr
 
 // データベース接続テスト
 export async function testConnection(): Promise<{ connected: boolean; error?: string; details?: any }> {
+  let client
   try {
     console.log('Testing database connection...')
     console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
-    console.log('DATABASE_URL preview:', process.env.DATABASE_URL?.substring(0, 50) + '...')
+    console.log('NODE_ENV:', process.env.NODE_ENV)
     
-    const client = await pool.connect()
-    const result = await client.query('SELECT NOW() as current_time, version() as db_version')
-    client.release()
+    // 接続文字列の基本チェック
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL is not set')
+    }
     
-    console.log('Database connection successful:', result.rows[0])
+    client = await pool.connect()
+    console.log('Successfully got client from pool')
+    
+    const result = await client.query('SELECT NOW() as current_time, version() as db_version, current_database() as db_name')
+    console.log('Database query successful')
+    
     return { 
       connected: true, 
       details: {
         timestamp: result.rows[0].current_time,
-        version: result.rows[0].db_version?.substring(0, 50) + '...'
+        version: result.rows[0].db_version?.substring(0, 50) + '...',
+        database: result.rows[0].db_name
       }
     }
   } catch (error: any) {
@@ -286,15 +298,21 @@ export async function testConnection(): Promise<{ connected: boolean; error?: st
     console.error('Error details:', {
       message: error?.message,
       code: error?.code,
-      name: error?.name
+      name: error?.name,
+      stack: error?.stack?.substring(0, 200) + '...'
     })
     return { 
       connected: false, 
       error: error?.message || 'Unknown error',
       details: {
         code: error?.code,
-        name: error?.name
+        name: error?.name,
+        connectionString: process.env.DATABASE_URL ? 'exists' : 'missing'
       }
+    }
+  } finally {
+    if (client) {
+      client.release()
     }
   }
 }
