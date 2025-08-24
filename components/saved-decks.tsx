@@ -69,8 +69,12 @@ export default function SavedDecks() {
   const deleteDeck = async (deckId: number, deckName: string) => {
     try {
       console.log('Attempting to delete deck:', deckId)
-      const response = await fetch(`/api/decks/${deckId}`, {
-        method: 'DELETE',
+      const response = await fetch('/api/decks/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ deckId }),
       })
 
       console.log('Delete response status:', response.status)
