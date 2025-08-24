@@ -61,6 +61,46 @@ export async function saveDeckSupabase(deckData: {
   }
 }
 
+// ユーザーのデッキ取得（Supabase使用）
+export async function getUserDecksSupabase(userId: number) {
+  try {
+    const { data, error } = await supabase
+      .from('saved_decks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Supabase get user decks error:', error)
+    throw error
+  }
+}
+
+// ユーザーをX IDで取得（Supabase使用）
+export async function getUserByXIdSupabase(xId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('x_id', xId)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // レコードが見つからない場合
+        return null
+      }
+      throw error
+    }
+    return data
+  } catch (error) {
+    console.error('Supabase get user by X ID error:', error)
+    throw error
+  }
+}
+
 // 接続テスト（Supabase使用）
 export async function testSupabaseConnection() {
   try {
