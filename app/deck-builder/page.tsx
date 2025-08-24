@@ -186,7 +186,9 @@ export default function DeckBuilderPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save deck')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Save deck API error:', errorData)
+        throw new Error(`Failed to save deck: ${errorData.error || response.statusText}`)
       }
 
       toast({
@@ -201,9 +203,10 @@ export default function DeckBuilderPage() {
 
     } catch (error) {
       console.error('Error saving deck:', error)
+      const errorMessage = error instanceof Error ? error.message : "デッキの保存中にエラーが発生しました"
       toast({
         title: "保存に失敗しました",
-        description: "デッキの保存中にエラーが発生しました",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -781,11 +784,12 @@ export default function DeckBuilderPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左側: デッキ情報 */}
           <div className="lg:col-span-1 bg-white dark:bg-black border border-gray-200 dark:border-blue-900 rounded-lg shadow-lg p-4 dark:neon-border">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-blue-400 flex items-center">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-blue-400 flex items-center mb-3">
                 <Database className="h-5 w-5 mr-2 text-yellow-600 dark:text-yellow-400" />
                 デッキ ({deck.length > 50 ? <span className="text-red-600">{deck.length}</span> : deck.length}/50)
               </h2>
+              
               {/* 第一列: 保存・ID発行 */}
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <Button
