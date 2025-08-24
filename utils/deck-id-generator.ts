@@ -147,6 +147,48 @@ export function decodeDeckId(deckId: string, allCardIds: string[]): string[] {
   }
 }
 
+// レガシー形式のデコード関数（既存IDとの互換性用）
+function decodeDeckIdLegacy(deckId: string, allCards: Card[]): Card[] {
+  if (!deckId.startsWith('bt') || deckId.length < 58) {
+    return []
+  }
+
+  const cardCounts: number[] = new Array(116).fill(0)
+  const dataString = deckId.slice(2)
+  
+  // 2文字ずつペアにして処理（116枚対応）
+  for (let i = 0; i < dataString.length - 1; i += 2) {
+    const char1 = dataString[i]
+    const char2 = dataString[i + 1]
+    
+    if (charToNumber[char1] !== undefined && charToNumber[char2] !== undefined) {
+      const cardIndex1 = Math.floor(i / 2) * 2
+      const cardIndex2 = cardIndex1 + 1
+      
+      if (cardIndex1 < 116) cardCounts[cardIndex1] = charToNumber[char1]
+      if (cardIndex2 < 116) cardCounts[cardIndex2] = charToNumber[char2]
+    }
+  }
+
+  // カード配列に変換
+  const deck: Card[] = []
+  cardCounts.forEach((count, index) => {
+    if (count > 0) {
+      const cardId = findCardIdByInternalNumber(index + 1, allCards)
+      if (cardId) {
+        const card = allCards.find(c => c.id === cardId)
+        if (card) {
+          for (let i = 0; i < count; i++) {
+            deck.push(card)
+          }
+        }
+      }
+    }
+  })
+
+  return deck
+}
+
 // 内部関数：プレフィックスを指定してデコード
 function decodeDeckIdWithPrefix(deckId: string, allCardIds: string[], prefix: 'bt' | 'bk'): string[] {
   try {
@@ -163,9 +205,13 @@ function decodeDeckIdWithPrefix(deckId: string, allCardIds: string[], prefix: 'b
     const expectedMinLength = isLegacyFormat ? 58 : 99
     const maxCards = isLegacyFormat ? 116 : 199
 
-    // 長さチェック
+    // 長さチェック（柔軟に対応）
     if (deckId.length < expectedMinLength) {
-      console.warn(`Deck ID is too short: ${deckId.length}, expected at least ${expectedMinLength} characters`)
+      console.warn(`Deck ID is too short: ${deckId.length}, expected at least ${expectedMinLength} characters. Trying legacy format...`)
+      // レガシー形式（短いID）の場合、旧ロジックを使用
+      if (deckId.length >= 58 && deckId.length <= 60) {
+        return decodeDeckIdLegacy(deckId, allCards)
+      }
       return []
     }
 

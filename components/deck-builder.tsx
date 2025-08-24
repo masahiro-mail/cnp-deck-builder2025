@@ -344,7 +344,7 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
               className="flex items-center gap-2"
             >
               <Download size={16} />
-              デッキIDダウンロード
+              デッキID発行
             </Button>
           </>
         )}
