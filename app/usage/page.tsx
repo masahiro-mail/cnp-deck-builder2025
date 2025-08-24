@@ -50,7 +50,7 @@ export default function UsagePage() {
                 <div>
                   <p className="font-medium">デッキの保存</p>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    X（Twitter）でログイン後、デッキ名を付けて保存できます。保存したデッキは「保存済みデッキ」から確認できます。
+                    X（Twitter）でログイン後、デッキ名を付けて保存できます。
                   </p>
                 </div>
               </div>
@@ -129,7 +129,7 @@ export default function UsagePage() {
                 <div>
                   <p className="font-medium">レイキを入力</p>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    デッキの総レイキ数を入力します（通常は30）。
+                    デッキの総レイキ数を入力します（通常は15）。
                   </p>
                 </div>
               </div>
@@ -172,19 +172,20 @@ export default function UsagePage() {
                 <div className="p-4 border rounded-lg">
                   <h4 className="font-medium mb-2">デッキ枚数</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    最小30枚〜最大60枚
+                    50枚
                   </p>
                 </div>
                 <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">同名カード制限</h4>
+                  <h4 className="font-medium mb-2">同じカード制限</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    同じ名前のカードは最大4枚まで
+                    同じNoのカードは最大4枚まで<br/>
+                    （名前は同じでもNoが違えば違うカード扱い）
                   </p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <h4 className="font-medium mb-2">レイキ制限</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    総レイキ数は30に設定
+                    総レイキ数は15に設定
                   </p>
                 </div>
                 <div className="p-4 border rounded-lg">

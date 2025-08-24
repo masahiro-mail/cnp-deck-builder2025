@@ -239,29 +239,56 @@ export async function updateDeck(
 
 // デッキを削除
 export async function deleteDeck(deckId: number, userId: number): Promise<boolean> {
-  const client = await pool.connect()
+  let client
   
   try {
+    console.log('Database: Attempting to connect to pool...')
+    client = await pool.connect()
+    console.log('Database: Connected successfully')
+    
     console.log('Database: Deleting deck with ID:', deckId, 'for user:', userId)
-    const query = `
-      DELETE FROM saved_decks 
-      WHERE id = $1 AND user_id = $2
-    `
     
-    const result = await client.query(query, [deckId, userId])
-    console.log('Database: Delete result rowCount:', result.rowCount)
+    // まず存在確認
+    const checkQuery = 'SELECT id, deck_name FROM saved_decks WHERE id = $1 AND user_id = $2'
+    const checkResult = await client.query(checkQuery, [deckId, userId])
+    console.log('Database: Check result:', checkResult.rows)
     
-    return result.rowCount !== null && result.rowCount > 0
+    if (checkResult.rows.length === 0) {
+      console.log('Database: Deck not found or user mismatch')
+      return false
+    }
+    
+    // 削除実行
+    const deleteQuery = 'DELETE FROM saved_decks WHERE id = $1 AND user_id = $2'
+    const deleteResult = await client.query(deleteQuery, [deckId, userId])
+    console.log('Database: Delete result rowCount:', deleteResult.rowCount)
+    
+    const success = deleteResult.rowCount !== null && deleteResult.rowCount > 0
+    console.log('Database: Delete operation success:', success)
+    
+    return success
   } catch (error: any) {
-    console.error('Error deleting deck:', error)
-    console.error('Database error details:', {
-      message: error?.message,
-      code: error?.code,
-      detail: error?.detail
-    })
-    throw error
+    console.error('Database: Error in deleteDeck function')
+    console.error('Database: Error message:', error?.message)
+    console.error('Database: Error code:', error?.code)
+    console.error('Database: Error detail:', error?.detail)
+    console.error('Database: Connection string exists:', !!process.env.DATABASE_URL)
+    
+    // 接続エラーの場合は特別な処理
+    if (error?.code === 'ECONNREFUSED' || error?.code === 'ENOTFOUND') {
+      console.error('Database: Connection failed - database may be unavailable')
+    }
+    
+    throw new Error(`Database deletion failed: ${error?.message || 'Unknown error'}`)
   } finally {
-    client.release()
+    if (client) {
+      try {
+        console.log('Database: Releasing client connection')
+        client.release()
+      } catch (releaseError) {
+        console.error('Database: Error releasing client:', releaseError)
+      }
+    }
   }
 }
 

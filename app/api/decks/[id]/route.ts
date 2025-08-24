@@ -82,57 +82,83 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   console.log('Params:', params)
   
   try {
+    // セッション確認
     const session = await getServerSession(authOptions)
-    console.log('Session:', session ? { userId: session.user?.id, email: session.user?.email } : 'null')
+    console.log('Session exists:', !!session)
+    console.log('Session user ID:', session?.user?.id)
     
-    if (!session || !session.user?.id) {
-      console.log('Unauthorized: No session or user ID')
+    if (!session?.user?.id) {
+      console.log('No valid session')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // デッキID検証
     const deckId = parseInt(params.id)
-    console.log('Parsed deck ID:', deckId)
-    if (isNaN(deckId)) {
-      console.log('Invalid deck ID')
+    console.log('Deck ID to delete:', deckId)
+    if (isNaN(deckId) || deckId <= 0) {
+      console.log('Invalid deck ID format')
       return NextResponse.json({ error: 'Invalid deck ID' }, { status: 400 })
     }
 
-    // ユーザー情報取得
-    console.log('Getting user by X ID:', session.user.id)
-    const user = await getUserByXId(session.user.id)
-    console.log('User found:', user ? { id: user.id, xId: user.x_id } : 'null')
+    // ユーザー取得
+    console.log('Looking up user with X ID:', session.user.id)
+    let user
+    try {
+      user = await getUserByXId(session.user.id)
+      console.log('User lookup result:', user ? { id: user.id, x_id: user.x_id } : 'null')
+    } catch (userError: any) {
+      console.error('User lookup failed:', userError.message)
+      return NextResponse.json({ error: 'Database user lookup failed' }, { status: 500 })
+    }
     
-    if (!user) {
-      console.log('User not found in database')
+    if (!user?.id) {
+      console.log('User not found or invalid user ID')
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    if (!user.id) {
-      console.log('User ID is null')
-      return NextResponse.json({ error: 'Invalid user data' }, { status: 500 })
+    // デッキ削除実行
+    console.log('Executing delete operation:', { deckId, userId: user.id })
+    let deleteResult
+    try {
+      deleteResult = await deleteDeck(deckId, user.id)
+      console.log('Delete operation result:', deleteResult)
+    } catch (deleteError: any) {
+      console.error('Delete operation failed:', deleteError.message)
+      console.error('Delete error details:', { 
+        code: deleteError.code,
+        detail: deleteError.detail 
+      })
+      return NextResponse.json({ 
+        error: 'Database delete operation failed',
+        details: process.env.NODE_ENV === 'development' ? deleteError.message : undefined
+      }, { status: 500 })
     }
-
-    // デッキ削除（所有者確認付き）
-    console.log('Attempting to delete deck:', { deckId, userId: user.id })
-    const deleted = await deleteDeck(deckId, user.id)
-    console.log('Delete result:', deleted)
     
-    if (!deleted) {
-      console.log('Deck not found or delete failed')
-      return NextResponse.json({ error: 'Deck not found or you do not have permission to delete it' }, { status: 404 })
+    if (!deleteResult) {
+      console.log('No rows affected - deck not found or no permission')
+      return NextResponse.json({ 
+        error: 'Deck not found or access denied',
+        details: { deckId, userId: user.id }
+      }, { status: 404 })
     }
 
-    console.log('Deck deleted successfully')
-    return NextResponse.json({ message: 'Deck deleted successfully' })
-  } catch (error: any) {
-    console.error('=== DELETE ERROR ===')
-    console.error('Error deleting deck:', error)
-    console.error('Error stack:', error?.stack)
-    console.error('Error message:', error?.message)
-    console.error('Error code:', error?.code)
+    console.log('SUCCESS: Deck deleted successfully')
     return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: process.env.NODE_ENV === 'development' ? error?.message : undefined 
+      message: 'Deck deleted successfully',
+      deletedDeckId: deckId
+    })
+    
+  } catch (error: any) {
+    console.error('=== UNEXPECTED DELETE ERROR ===')
+    console.error('Error type:', error.constructor?.name)
+    console.error('Error message:', error.message)
+    console.error('Error code:', error.code)
+    console.error('Error stack:', error.stack?.substring(0, 500))
+    
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      type: error.constructor?.name || 'Unknown',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
     }, { status: 500 })
   } finally {
     console.log('=== DELETE /api/decks/[id] END ===')
