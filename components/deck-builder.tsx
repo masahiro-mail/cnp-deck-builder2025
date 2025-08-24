@@ -278,7 +278,7 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
               <DialogTrigger asChild>
                 <Button size="lg" className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
                   <Save size={16} />
-                  サーバーに保存
+                  デッキ保存
                 </Button>
               </DialogTrigger>
               <DialogContent>

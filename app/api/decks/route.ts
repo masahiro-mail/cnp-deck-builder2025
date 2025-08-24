@@ -35,6 +35,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(savedDeck, { status: 201 })
   } catch (error) {
     console.error('Error saving deck:', error)
+    // データベース接続エラーの場合は適切なメッセージを返す
+    if (error.code === 'ENOTFOUND' || error.code === '28P01') {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 503 })
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -59,6 +63,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(decks)
   } catch (error) {
     console.error('Error fetching decks:', error)
+    // データベース接続エラーの場合は適切なメッセージを返す
+    if (error.code === 'ENOTFOUND' || error.code === '28P01') {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 503 })
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

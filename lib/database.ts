@@ -3,7 +3,10 @@ import { Pool } from 'pg'
 // PostgreSQL接続プール
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 })
 
 // ユーザー型定義
@@ -50,6 +53,9 @@ export async function upsertUser(userData: Omit<User, 'id' | 'created_at' | 'upd
     const result = await client.query(query, values)
     
     return result.rows[0] as User
+  } catch (error) {
+    console.error('Error upserting user:', error)
+    throw error
   } finally {
     client.release()
   }
@@ -64,6 +70,9 @@ export async function getUserByXId(xId: string): Promise<User | null> {
     const result = await client.query(query, [xId])
     
     return result.rows[0] || null
+  } catch (error) {
+    console.error('Error getting user by X ID:', error)
+    throw error
   } finally {
     client.release()
   }
@@ -84,6 +93,9 @@ export async function saveDeck(deckData: Omit<SavedDeck, 'id' | 'created_at' | '
     const result = await client.query(query, values)
     
     return result.rows[0] as SavedDeck
+  } catch (error) {
+    console.error('Error saving deck:', error)
+    throw error
   } finally {
     client.release()
   }
@@ -103,6 +115,9 @@ export async function getUserDecks(userId: number): Promise<SavedDeck[]> {
     const result = await client.query(query, [userId])
     
     return result.rows as SavedDeck[]
+  } catch (error) {
+    console.error('Error getting user decks:', error)
+    throw error
   } finally {
     client.release()
   }
@@ -121,6 +136,9 @@ export async function getDeckById(deckId: number, userId: number): Promise<Saved
     const result = await client.query(query, [deckId, userId])
     
     return result.rows[0] || null
+  } catch (error) {
+    console.error('Error getting deck by ID:', error)
+    throw error
   } finally {
     client.release()
   }
