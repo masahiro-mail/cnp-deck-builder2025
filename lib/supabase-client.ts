@@ -1,8 +1,8 @@
 // Supabase クライアント（代替案）
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://rmhqemnvtkdprcoswftk.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHFlbW52dGtkcHJjb3N3ZnRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ1MzI2NzgsImV4cCI6MjA1MDEwODY3OH0.PdCjFHvNywPt-PTU9lFPFQYN6JN5rYYKZjWvYKt2kX4'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rmhqemnvtkdprcoswftk.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHFlbW52dGtkcHJjb3N3ZnRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NzUxMzksImV4cCI6MjA3MTU1MTEzOX0.EQolod9xOwrvD-v0fuJMCQqp17z-WDZ-Q7XHkqRPDto'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
