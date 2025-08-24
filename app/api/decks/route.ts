@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { saveDeck, getUserDecks, getUserByXId } from '@/lib/database'
+import { upsertUserSupabase, saveDeckSupabase } from '@/lib/supabase-client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,17 +24,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Deck name and deck ID are required' }, { status: 400 })
     }
 
-    // ユーザー情報取得
+    // Supabase-jsクライアント経由でユーザー情報をupsert（作成/更新）
     console.log('Looking for user with X ID:', session.user.id)
-    const user = await getUserByXId(session.user.id)
-    console.log('User found:', user ? { id: user.id, x_id: user.x_id, x_name: user.x_name } : 'null')
     
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+    // ユーザー情報をSupabaseに保存/更新
+    const user = await upsertUserSupabase({
+      x_id: session.user.id,
+      x_name: session.user.name || 'Unknown',
+      x_username: session.user.username || session.user.id,
+      x_icon_url: session.user.image || undefined
+    })
+    
+    console.log('User upserted successfully:', { id: user.id, x_id: user.x_id, x_name: user.x_name })
 
-    // デッキ保存
-    console.log('Saving deck with data:', {
+    // Supabase-js経由でデッキ保存
+    console.log('Saving deck with Supabase client:', {
       user_id: user.id,
       deck_name,
       deck_id,
@@ -41,15 +46,15 @@ export async function POST(request: NextRequest) {
       is_public
     })
     
-    const savedDeck = await saveDeck({
-      user_id: user.id!,
+    const savedDeck = await saveDeckSupabase({
+      user_id: user.id,
       deck_name,
       deck_id,
       description,
       is_public
     })
     
-    console.log('Deck saved successfully:', savedDeck)
+    console.log('Deck saved successfully with Supabase:', savedDeck)
 
     return NextResponse.json(savedDeck, { status: 201 })
   } catch (error: any) {
