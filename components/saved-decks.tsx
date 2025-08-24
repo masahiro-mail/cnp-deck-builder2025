@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Trash2, Eye, Download, Lock, Globe } from "lucide-react"
+import { Trash2, Eye, Upload, Lock, Globe } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,7 @@ interface SavedDeck {
 export default function SavedDecks() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const router = useRouter()
   const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -90,21 +92,14 @@ export default function SavedDecks() {
     }
   }
 
-  // デッキIDをダウンロード
-  const downloadDeckId = (deck: SavedDeck) => {
-    const blob = new Blob([deck.deck_id], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${deck.deck_name.replace(/[^a-zA-Z0-9\-_]/g, '_')}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-
+  // デッキをビルダーに読み込み
+  const loadDeckInBuilder = (deck: SavedDeck) => {
+    // デッキIDをクエリパラメータとしてデッキビルダーページに遷移
+    router.push(`/deck-builder?deck=${encodeURIComponent(deck.deck_id)}`)
+    
     toast({
-      title: "デッキIDをダウンロードしました",
-      description: `「${deck.deck_name}」のデッキIDをダウンロードしました`,
+      title: "デッキを読み込みました",
+      description: `「${deck.deck_name}」をデッキビルダーで読み込みます`,
     })
   }
 
@@ -165,10 +160,11 @@ export default function SavedDecks() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => downloadDeckId(deck)}
-                    className="flex items-center gap-1"
+                    onClick={() => loadDeckInBuilder(deck)}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                   >
-                    <Download className="w-4 h-4" />
+                    <Upload className="w-4 h-4" />
+                    読み込み
                   </Button>
                   
                   <AlertDialog>
