@@ -68,13 +68,22 @@ export default function SavedDecks() {
   // デッキを削除
   const deleteDeck = async (deckId: number, deckName: string) => {
     try {
+      console.log('Attempting to delete deck:', deckId)
       const response = await fetch(`/api/decks/${deckId}`, {
         method: 'DELETE',
       })
 
+      console.log('Delete response status:', response.status)
+      console.log('Delete response ok:', response.ok)
+
       if (!response.ok) {
-        throw new Error('Failed to delete deck')
+        const errorData = await response.text()
+        console.error('Delete response error:', errorData)
+        throw new Error(`Failed to delete deck: ${response.status} ${errorData}`)
       }
+
+      const result = await response.json()
+      console.log('Delete result:', result)
 
       setSavedDecks(savedDecks.filter(deck => deck.id !== deckId))
       
@@ -86,7 +95,7 @@ export default function SavedDecks() {
       console.error('Error deleting deck:', error)
       toast({
         title: "削除に失敗しました",
-        description: "デッキの削除中にエラーが発生しました",
+        description: error instanceof Error ? error.message : "デッキの削除中にエラーが発生しました",
         variant: "destructive",
       })
     }

@@ -30,17 +30,14 @@ export default function RootLayout({
             <header className="bg-black dark:bg-black text-white p-4 flex justify-between items-center">
               <div className="flex items-center space-x-2">
                 <div className="bg-yellow-500 text-black font-bold px-2 py-1 rounded">CNP</div>
-                <h1 className="text-xl font-bold">Trading Card Game</h1>
+                <h1 className="text-xl font-bold">トレカ デッキビルダー</h1>
               </div>
               <div className="flex items-center space-x-4">
-                <Link href="/deck-builder" className="hover:text-yellow-400">
-                  デッキビルダー
-                </Link>
                 <Link href="/saved-decks" className="hover:text-yellow-400">
                   保存済みデッキ
                 </Link>
-                <Link href="/quiz" className="hover:text-yellow-400">
-                  CNPトレカクイズ
+                <Link href="/usage" className="hover:text-yellow-400">
+                  使用方法
                 </Link>
                 <AuthButton />
                 <ModeToggle />

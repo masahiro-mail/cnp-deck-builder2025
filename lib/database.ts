@@ -242,14 +242,24 @@ export async function deleteDeck(deckId: number, userId: number): Promise<boolea
   const client = await pool.connect()
   
   try {
+    console.log('Database: Deleting deck with ID:', deckId, 'for user:', userId)
     const query = `
       DELETE FROM saved_decks 
       WHERE id = $1 AND user_id = $2
     `
     
     const result = await client.query(query, [deckId, userId])
+    console.log('Database: Delete result rowCount:', result.rowCount)
     
-    return result.rowCount > 0
+    return result.rowCount !== null && result.rowCount > 0
+  } catch (error: any) {
+    console.error('Error deleting deck:', error)
+    console.error('Database error details:', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail
+    })
+    throw error
   } finally {
     client.release()
   }
