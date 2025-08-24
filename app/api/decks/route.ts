@@ -6,6 +6,12 @@ import { saveDeck, getUserDecks, getUserByXId } from '@/lib/database'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
+    console.log('Session data:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email,
+      userName: session?.user?.name
+    })
     
     if (!session || !session.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,12 +24,23 @@ export async function POST(request: NextRequest) {
     }
 
     // ユーザー情報取得
+    console.log('Looking for user with X ID:', session.user.id)
     const user = await getUserByXId(session.user.id)
+    console.log('User found:', user ? { id: user.id, x_id: user.x_id, x_name: user.x_name } : 'null')
+    
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     // デッキ保存
+    console.log('Saving deck with data:', {
+      user_id: user.id,
+      deck_name,
+      deck_id,
+      description,
+      is_public
+    })
+    
     const savedDeck = await saveDeck({
       user_id: user.id!,
       deck_name,
@@ -31,15 +48,29 @@ export async function POST(request: NextRequest) {
       description,
       is_public
     })
+    
+    console.log('Deck saved successfully:', savedDeck)
 
     return NextResponse.json(savedDeck, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving deck:', error)
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      name: error?.name,
+      stack: error?.stack
+    })
+    
     // データベース接続エラーの場合は適切なメッセージを返す
-    if (error.code === 'ENOTFOUND' || error.code === '28P01') {
+    if (error?.code === 'ENOTFOUND' || error?.code === '28P01') {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 503 })
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    
+    // より具体的なエラーメッセージを返す
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+    }, { status: 500 })
   }
 }
 

@@ -66,12 +66,19 @@ export async function getUserByXId(xId: string): Promise<User | null> {
   const client = await pool.connect()
   
   try {
+    console.log('Database: Searching for user with X ID:', xId)
     const query = 'SELECT * FROM users WHERE x_id = $1'
     const result = await client.query(query, [xId])
+    console.log('Database: Query result rows count:', result.rows.length)
     
     return result.rows[0] || null
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting user by X ID:', error)
+    console.error('Database error details:', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail
+    })
     throw error
   } finally {
     client.release()
@@ -83,6 +90,7 @@ export async function saveDeck(deckData: Omit<SavedDeck, 'id' | 'created_at' | '
   const client = await pool.connect()
   
   try {
+    console.log('Database: Saving deck with data:', deckData)
     const query = `
       INSERT INTO saved_decks (user_id, deck_name, deck_id, description, is_public)
       VALUES ($1, $2, $3, $4, $5)
@@ -90,11 +98,19 @@ export async function saveDeck(deckData: Omit<SavedDeck, 'id' | 'created_at' | '
     `
     
     const values = [deckData.user_id, deckData.deck_name, deckData.deck_id, deckData.description, deckData.is_public]
+    console.log('Database: Query values:', values)
     const result = await client.query(query, values)
+    console.log('Database: Insert result:', result.rows[0])
     
     return result.rows[0] as SavedDeck
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving deck:', error)
+    console.error('Database error details:', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail,
+      constraint: error?.constraint
+    })
     throw error
   } finally {
     client.release()
