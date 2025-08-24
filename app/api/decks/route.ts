@@ -18,10 +18,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { deck_name, deck_id, description, is_public = false } = await request.json()
+    const { deck_name, deck_id, description, is_public = false, raiki_cards } = await request.json()
 
     if (!deck_name || !deck_id) {
       return NextResponse.json({ error: 'Deck name and deck ID are required' }, { status: 400 })
+    }
+
+    // Raiki cardsの検証（5色合計15枚）
+    if (raiki_cards) {
+      const total = Object.values(raiki_cards).reduce((sum: number, count: any) => sum + (Number(count) || 0), 0)
+      if (total !== 15) {
+        return NextResponse.json({ error: 'Raiki cards must total exactly 15 cards' }, { status: 400 })
+      }
     }
 
     // Supabase-jsクライアント経由でユーザー情報をupsert（作成/更新）
@@ -43,7 +51,8 @@ export async function POST(request: NextRequest) {
       deck_name,
       deck_id,
       description,
-      is_public
+      is_public,
+      raiki_cards
     })
     
     const savedDeck = await saveDeckSupabase({
@@ -51,7 +60,8 @@ export async function POST(request: NextRequest) {
       deck_name,
       deck_id,
       description,
-      is_public
+      is_public,
+      raiki_cards
     })
     
     console.log('Deck saved successfully with Supabase:', savedDeck)

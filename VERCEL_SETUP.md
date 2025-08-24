@@ -21,14 +21,14 @@ Vercel Dashboard の Environment Variables に以下を設定：
 ```env
 # NextAuth設定
 NEXTAUTH_URL=https://your-app-name.vercel.app
-NEXTAUTH_SECRET=a8b9c0d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9w0x1y2z3
+NEXTAUTH_SECRET=your-nextauth-secret-generate-new-one
 
-# Twitter OAuth設定
-TWITTER_CLIENT_ID=SzJMZUNDNHFGTkcydk1CdjB0OFE6MTpjaQ
-TWITTER_CLIENT_SECRET=AjX_CbYn5LxeF16BmrC3Z8nBBWoTI3uuInucHRkYX0MR1f8y7S
+# Twitter OAuth設定  
+TWITTER_CLIENT_ID=your-twitter-client-id
+TWITTER_CLIENT_SECRET=your-twitter-client-secret
 
 # Supabase データベース接続
-DATABASE_URL=postgresql://postgres.rmhqemnvtkdprcoswftk:[ZsAHdJuj0Id6Ra1D]@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
+DATABASE_URL=your-supabase-database-url
 
 # 本番環境
 NODE_ENV=production

@@ -28,6 +28,10 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
+  Copy,
+  FolderOpen,
+  FileInput,
+  Download,
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -111,6 +115,22 @@ export default function DeckBuilderPage() {
   const [showSavedDecks, setShowSavedDecks] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
+  // 新しい機能のためのstate
+  const [isDeckLoadDialogOpen, setIsDeckLoadDialogOpen] = useState(false)
+  const [isIdInputDialogOpen, setIsIdInputDialogOpen] = useState(false)
+  const [inputDeckId, setInputDeckId] = useState("")
+  const [availableDecks, setAvailableDecks] = useState<any[]>([])
+  const [selectedLoadDeck, setSelectedLoadDeck] = useState<string>("")
+  
+  // レイキカードシステム
+  const [raikiCards, setRaikiCards] = useState<Record<string, number>>({
+    blue: 0,    // 青
+    red: 0,     // 赤  
+    yellow: 0,  // 黄
+    green: 0,   // 緑
+    purple: 0   // 紫
+  })
+
   // 効果分類、収録パック、レアリティの一覧
   const effectTypes = useMemo(() => getEffectTypes(), [])
   const packs = useMemo(() => getPacks(), [])
@@ -161,6 +181,7 @@ export default function DeckBuilderPage() {
           deck_id: deckId,
           description: deckDescription,
           is_public: isPublic,
+          raiki_cards: raikiCards,
         }),
       })
 
@@ -187,6 +208,147 @@ export default function DeckBuilderPage() {
       })
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // ID発行（コピー専用）
+  const copyDeckId = async () => {
+    if (deck.length === 0) {
+      toast({
+        title: "デッキが空です",
+        description: "まずデッキを作成してください",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const generatedId = generateDeckId(deck.map(card => card.id))
+    
+    try {
+      await navigator.clipboard.writeText(generatedId)
+      toast({
+        title: "デッキIDをコピーしました",
+        description: "クリップボードにコピーされました",
+      })
+    } catch (error) {
+      console.error('Failed to copy:', error)
+      toast({
+        title: "コピーに失敗しました",
+        description: "手動でコピーしてください: " + generatedId.substring(0, 20) + "...",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // デッキ読み込みダイアログを開く
+  const openDeckLoadDialog = async () => {
+    setIsDeckLoadDialogOpen(true)
+    
+    // 自分の保存済みデッキと公開デッキを取得
+    try {
+      const personalDecks = session ? await fetch('/api/decks').then(res => res.ok ? res.json() : []) : []
+      const publicDecks = await fetch('/api/decks/public').then(res => res.ok ? res.json() : [])
+      
+      setAvailableDecks([
+        ...personalDecks.map((deck: any) => ({ ...deck, type: 'personal' })),
+        ...publicDecks.map((deck: any) => ({ ...deck, type: 'public' }))
+      ])
+    } catch (error) {
+      console.error('Error fetching decks:', error)
+      setAvailableDecks([])
+    }
+  }
+
+  // 選択したデッキを読み込み
+  const loadSelectedDeck = () => {
+    if (!selectedLoadDeck) return
+    
+    const selectedDeck = availableDecks.find(deck => deck.deck_id === selectedLoadDeck)
+    if (selectedDeck) {
+      // デッキIDでデッキを読み込み
+      const loadedDeck = loadDeckById(selectedDeck.deck_id)
+      if (loadedDeck.length > 0) {
+        setDeck(loadedDeck)
+        setDeckId(selectedDeck.deck_id)
+        setDeckName(selectedDeck.deck_name || "読み込みデッキ")
+        
+        const counts: Record<string, number> = {}
+        loadedDeck.forEach((card) => {
+          counts[card.id] = (counts[card.id] || 0) + 1
+        })
+        setCardCounts(counts)
+        
+        // Raiki cardsを復元（存在する場合）
+        if (selectedDeck.raiki_cards && typeof selectedDeck.raiki_cards === 'object') {
+          setRaikiCards(selectedDeck.raiki_cards)
+        } else {
+          // デフォルト値にリセット
+          setRaikiCards({ blue: 0, red: 0, yellow: 0, green: 0, purple: 0 })
+        }
+        
+        toast({
+          title: "デッキを読み込みました",
+          description: `「${selectedDeck.deck_name}」を読み込みました`,
+        })
+      }
+    }
+    
+    setIsDeckLoadDialogOpen(false)
+    setSelectedLoadDeck("")
+  }
+
+  // ID入力によるデッキ読み込み
+  const loadDeckByIdInput = () => {
+    if (!inputDeckId.trim()) {
+      toast({
+        title: "デッキIDが必要です",
+        description: "デッキIDを入力してください",
+        variant: "destructive",
+      })
+      return
+    }
+    
+    const loadedDeck = loadDeckById(inputDeckId.trim())
+    if (loadedDeck.length > 0) {
+      setDeck(loadedDeck)
+      setDeckId(inputDeckId.trim())
+      
+      const counts: Record<string, number> = {}
+      loadedDeck.forEach((card) => {
+        counts[card.id] = (counts[card.id] || 0) + 1
+      })
+      setCardCounts(counts)
+      
+      toast({
+        title: "デッキを読み込みました",
+        description: "デッキIDから正常に読み込みました",
+      })
+    } else {
+      toast({
+        title: "デッキが見つかりません",
+        description: "入力されたIDのデッキが見つかりませんでした",
+        variant: "destructive",
+      })
+    }
+    
+    setIsIdInputDialogOpen(false)
+    setInputDeckId("")
+  }
+
+  // レイキカードの数を更新
+  const updateRaikiCount = (color: string, delta: number) => {
+    const newRaiki = { ...raikiCards }
+    const currentCount = newRaiki[color] || 0
+    const newCount = Math.max(0, Math.min(15, currentCount + delta))
+    
+    // 全体の合計をチェック
+    const totalOthers = Object.entries(newRaiki)
+      .filter(([key]) => key !== color)
+      .reduce((sum, [, count]) => sum + count, 0)
+    
+    if (totalOthers + newCount <= 15) {
+      newRaiki[color] = newCount
+      setRaikiCards(newRaiki)
     }
   }
 
@@ -624,7 +786,8 @@ export default function DeckBuilderPage() {
                 <Database className="h-5 w-5 mr-2 text-yellow-600 dark:text-yellow-400" />
                 デッキ ({deck.length > 50 ? <span className="text-red-600">{deck.length}</span> : deck.length}/50)
               </h2>
-              <div className="flex gap-2">
+              {/* 第一列: 保存・ID発行 */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 <Button
                   variant="outline"
                   size="sm"
@@ -638,12 +801,34 @@ export default function DeckBuilderPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={openSaveDialog}
+                  onClick={copyDeckId}
                   disabled={deck.length === 0}
                   className="bg-white dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900 hover:text-yellow-700 dark:hover:text-yellow-200"
                 >
-                  <Save className="h-4 w-4 mr-1" />
+                  <Copy className="h-4 w-4 mr-1" />
                   ID発行
+                </Button>
+              </div>
+              
+              {/* 第二列: 読み込み・ID入力 */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openDeckLoadDialog}
+                  className="bg-white dark:bg-blue-900 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 hover:text-blue-700 dark:hover:text-blue-200"
+                >
+                  <FolderOpen className="h-4 w-4 mr-1" />
+                  デッキ読込
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsIdInputDialogOpen(true)}
+                  className="bg-white dark:bg-purple-900 border-purple-200 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900 hover:text-purple-700 dark:hover:text-purple-200"
+                >
+                  <FileInput className="h-4 w-4 mr-1" />
+                  ID入力
                 </Button>
               </div>
             </div>
@@ -667,102 +852,61 @@ export default function DeckBuilderPage() {
               <DeckStats deck={deck} deckAnalysis={deckAnalysis} />
             )}
 
-            {/* デッキインポート */}
+            {/* レイキカードシステム */}
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-blue-800">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-blue-300 mb-2 flex items-center">
-                <Upload className="h-4 w-4 mr-1 text-green-600 dark:text-green-400" />
-                デッキをインポート
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-blue-300 mb-3 flex items-center">
+                <Database className="h-4 w-4 mr-1 text-purple-600 dark:text-purple-400" />
+                レイキデッキ ({Object.values(raikiCards).reduce((a, b) => a + b, 0)}/15)
               </h3>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  placeholder="デッキIDを入力"
-                  value={importDeckId}
-                  onChange={(e) => setImportDeckId(e.target.value)}
-                  className="flex-grow bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                />
-                <Button onClick={importDeck} className="bg-green-600 hover:bg-green-700 text-white">
-                  <Upload className="h-4 w-4 mr-1" />
-                  インポート
-                </Button>
-              </div>
-            </div>
-
-            {/* 保存済みデッキ */}
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-blue-800">
-              <div className="flex justify-between items-center mb-2">
-                <h3
-                  className="text-sm font-semibold text-gray-700 dark:text-blue-300 flex items-center cursor-pointer"
-                  onClick={() => setShowSavedDecks(!showSavedDecks)}
-                >
-                  <Save className="h-4 w-4 mr-1 text-yellow-600 dark:text-yellow-400" />
-                  保存デッキ
-                  {showSavedDecks ? (
-                    <ChevronUp className="h-4 w-4 ml-1 text-gray-500 dark:text-gray-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 ml-1 text-gray-500 dark:text-gray-400" />
-                  )}
-                </h3>
-              </div>
-
-              {showSavedDecks && (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      type="text"
-                      placeholder="デッキを検索..."
-                      className="pl-9 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm h-8"
-                      value={deckSearchTerm}
-                      onChange={(e) => setDeckSearchTerm(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label
-                      htmlFor="deckType"
-                      className="block text-xs font-medium text-gray-700 dark:text-blue-300 mb-1"
-                    >
-                      タイプ
-                    </Label>
-                    <Select value={deckFilter} onValueChange={setDeckFilter}>
-                      <SelectTrigger className="w-full bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 h-8 text-sm">
-                        <SelectValue placeholder="すべてのタイプ" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                        <SelectItem value="all">すべてのタイプ</SelectItem>
-                        <SelectItem value="recommended">推奨デッキ</SelectItem>
-                        <SelectItem value="my">自分のデッキ</SelectItem>
-                        <SelectItem value="blue">青属性デッキ</SelectItem>
-                        <SelectItem value="red">赤属性デッキ</SelectItem>
-                        <SelectItem value="yellow">黄属性デッキ</SelectItem>
-                        <SelectItem value="green">緑属性デッキ</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {Object.keys(filteredDecks).length === 0 ? (
-                    <p className="text-gray-500 dark:text-blue-300 text-sm py-2">保存されたデッキはありません</p>
-                  ) : (
-                    <div className="max-h-[300px] overflow-y-auto pr-1">
-                      <ul className="space-y-2">
-                        {Object.entries(filteredDecks)
-                          .sort(([, a], [, b]) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                          .map(([id, data]) => (
-                            <SavedDeckItem
-                              key={id}
-                              id={id}
-                              data={data}
-                              isActive={id === deckId}
-                              onLoadDeck={loadSavedDeck}
-                              onDeleteDeck={deleteSavedDeck}
-                            />
-                          ))}
-                      </ul>
+              
+              <div className="space-y-3">
+                {Object.entries({
+                  blue: { name: '青', color: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400' },
+                  red: { name: '赤', color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400' },
+                  yellow: { name: '黄', color: 'bg-yellow-500', textColor: 'text-yellow-600 dark:text-yellow-400' },
+                  green: { name: '緑', color: 'bg-green-500', textColor: 'text-green-600 dark:text-green-400' },
+                  purple: { name: '紫', color: 'bg-purple-500', textColor: 'text-purple-600 dark:text-purple-400' }
+                }).map(([colorKey, colorInfo]) => (
+                  <div key={colorKey} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded-full ${colorInfo.color}`} />
+                      <span className={`text-sm font-medium ${colorInfo.textColor}`}>
+                        {colorInfo.name}
+                      </span>
                     </div>
-                  )}
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateRaikiCount(colorKey, -1)}
+                        disabled={raikiCards[colorKey] === 0}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      
+                      <span className="w-8 text-center text-sm font-mono">
+                        {raikiCards[colorKey]}
+                      </span>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateRaikiCount(colorKey, 1)}
+                        disabled={Object.values(raikiCards).reduce((a, b) => a + b, 0) >= 15}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  合計15枚になるように選択してください
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -1271,6 +1415,102 @@ export default function DeckBuilderPage() {
           <DialogFooter>
             <Button type="submit" onClick={saveDeck}>
               保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* デッキ読み込みダイアログ */}
+      <Dialog open={isDeckLoadDialogOpen} onOpenChange={setIsDeckLoadDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>デッキを読み込み</DialogTitle>
+            <DialogDescription>
+              保存済みデッキまたは公開デッキから選択してください
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>利用可能なデッキ</Label>
+              <Select value={selectedLoadDeck} onValueChange={setSelectedLoadDeck}>
+                <SelectTrigger>
+                  <SelectValue placeholder="デッキを選択..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableDecks.map((deck) => (
+                    <SelectItem key={deck.deck_id} value={deck.deck_id}>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          deck.type === 'personal' 
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' 
+                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                        }`}>
+                          {deck.type === 'personal' ? '自分' : '公開'}
+                        </span>
+                        <div className="flex flex-col">
+                          <span>{deck.deck_name}</span>
+                          {deck.raiki_cards && (
+                            <div className="text-xs text-gray-500 flex gap-1">
+                              <span className="text-blue-500">青{deck.raiki_cards.blue || 0}</span>
+                              <span className="text-red-500">赤{deck.raiki_cards.red || 0}</span>
+                              <span className="text-yellow-500">黄{deck.raiki_cards.yellow || 0}</span>
+                              <span className="text-green-500">緑{deck.raiki_cards.green || 0}</span>
+                              <span className="text-purple-500">紫{deck.raiki_cards.purple || 0}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {availableDecks.length === 0 && (
+              <div className="text-center py-4 text-gray-500">
+                読み込み可能なデッキがありません
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={loadSelectedDeck}
+              disabled={!selectedLoadDeck}
+            >
+              読み込み
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ID入力ダイアログ */}
+      <Dialog open={isIdInputDialogOpen} onOpenChange={setIsIdInputDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>デッキIDを入力</DialogTitle>
+            <DialogDescription>
+              読み込みたいデッキのIDを入力してください
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="input-deck-id" className="text-right">
+                デッキID
+              </Label>
+              <Input
+                id="input-deck-id"
+                value={inputDeckId}
+                onChange={(e) => setInputDeckId(e.target.value)}
+                className="col-span-3"
+                placeholder="BK-xxxxx... または既存のID"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={loadDeckByIdInput}
+              disabled={!inputDeckId.trim()}
+            >
+              読み込み
             </Button>
           </DialogFooter>
         </DialogContent>

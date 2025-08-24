@@ -1,8 +1,12 @@
 // Supabase クライアント（代替案）
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rmhqemnvtkdprcoswftk.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHFlbW52dGtkcHJjb3N3ZnRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NzUxMzksImV4cCI6MjA3MTU1MTEzOX0.EQolod9xOwrvD-v0fuJMCQqp17z-WDZ-Q7XHkqRPDto'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing required Supabase environment variables')
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
@@ -46,6 +50,7 @@ export async function saveDeckSupabase(deckData: {
   deck_id: string
   description?: string
   is_public: boolean
+  raiki_cards?: Record<string, number>
 }) {
   try {
     const { data, error } = await supabase

@@ -36,9 +36,6 @@ export default function RootLayout({
                 <Link href="/deck-builder" className="hover:text-yellow-400">
                   デッキビルダー
                 </Link>
-                <Link href="/manual-deck-builder" className="hover:text-yellow-400">
-                  手動ビルダー
-                </Link>
                 <Link href="/saved-decks" className="hover:text-yellow-400">
                   保存済みデッキ
                 </Link>

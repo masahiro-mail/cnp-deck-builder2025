@@ -17,7 +17,7 @@ if (connectionString && process.env.NODE_ENV === 'production') {
 const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false,
+    rejectUnauthorized: true,
     requestCert: false,
     agent: false,
   } : false,
