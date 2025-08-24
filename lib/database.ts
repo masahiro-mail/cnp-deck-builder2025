@@ -3,10 +3,13 @@ import { Pool } from 'pg'
 // PostgreSQL接続プール
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.NODE_ENV === 'production' ? { 
+    rejectUnauthorized: false,
+    mode: 'require'
+  } : false,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // タイムアウトを10秒に延長
 })
 
 // ユーザー型定義
@@ -260,14 +263,38 @@ export async function getPublicDecks(limit: number = 10, offset: number = 0): Pr
 }
 
 // データベース接続テスト
-export async function testConnection(): Promise<boolean> {
+export async function testConnection(): Promise<{ connected: boolean; error?: string; details?: any }> {
   try {
+    console.log('Testing database connection...')
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
+    console.log('DATABASE_URL preview:', process.env.DATABASE_URL?.substring(0, 50) + '...')
+    
     const client = await pool.connect()
-    await client.query('SELECT NOW()')
+    const result = await client.query('SELECT NOW() as current_time, version() as db_version')
     client.release()
-    return true
-  } catch (error) {
+    
+    console.log('Database connection successful:', result.rows[0])
+    return { 
+      connected: true, 
+      details: {
+        timestamp: result.rows[0].current_time,
+        version: result.rows[0].db_version?.substring(0, 50) + '...'
+      }
+    }
+  } catch (error: any) {
     console.error('Database connection error:', error)
-    return false
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      name: error?.name
+    })
+    return { 
+      connected: false, 
+      error: error?.message || 'Unknown error',
+      details: {
+        code: error?.code,
+        name: error?.name
+      }
+    }
   }
 }

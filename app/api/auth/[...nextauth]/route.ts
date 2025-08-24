@@ -21,7 +21,7 @@ const providers = [
 
 export const authOptions: NextAuthOptions = {
   providers,
-  debug: process.env.NODE_ENV === 'development',
+  debug: true, // 本番でもデバッグログを有効化
   secret: process.env.NEXTAUTH_SECRET,
   cookies: {
     pkceCodeVerifier: {
