@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -48,6 +48,11 @@ export default function SavedDecks() {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingPublic, setIsLoadingPublic] = useState(false)
   const [publicDeckFilters, setPublicDeckFilters] = useState<DeckFilter>({})
+
+  // フィルター変更のコールバック関数をメモ化
+  const handlePublicDeckFilterChange = useCallback((filters: DeckFilter) => {
+    setPublicDeckFilters(filters)
+  }, [])
 
   // 保存されたデッキを取得
   const fetchSavedDecks = async () => {
@@ -181,22 +186,6 @@ export default function SavedDecks() {
     })
   }
 
-  if (!session) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-600 mb-4">保存されたデッキを表示するにはログインしてください</p>
-      </div>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-600">デッキを読み込み中...</p>
-      </div>
-    )
-  }
-
   // 公開デッキのフィルタリング
   const filteredPublicDecks = useMemo(() => {
     if (!publicDecks.length) return []
@@ -219,11 +208,18 @@ export default function SavedDecks() {
     })
   }, [publicDecks, publicDeckFilters])
 
-  if (savedDecks.length === 0) {
+  if (!session) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-600 mb-4">保存されたデッキがありません</p>
-        <p className="text-sm text-gray-500">デッキビルダーでデッキを作成して保存してみましょう</p>
+        <p className="text-gray-600 mb-4">保存されたデッキを表示するにはログインしてください</p>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-600">デッキを読み込み中...</p>
       </div>
     )
   }
@@ -372,7 +368,7 @@ export default function SavedDecks() {
             <div className="space-y-6">
               <DeckFilters 
                 decks={publicDecks} 
-                onFilterChange={setPublicDeckFilters}
+                onFilterChange={handlePublicDeckFilterChange}
               />
               
               {filteredPublicDecks.length === 0 ? (

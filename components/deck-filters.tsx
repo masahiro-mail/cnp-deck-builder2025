@@ -91,7 +91,7 @@ export default function DeckFilters({ decks, onFilterChange, className = "" }: D
   // フィルターの変更を通知
   useEffect(() => {
     onFilterChange(filters)
-  }, [filters, onFilterChange])
+  }, [filters]) // onFilterChangeを依存配列から削除
 
   const handleCreatorChange = (creator: string) => {
     setFilters(prev => ({
