@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { Trash2, Eye, Upload, Lock, Globe, User } from "lucide-react"
+import DeckFilters, { DeckFilter } from "@/components/deck-filters"
+import { getMainColor, getColorBgClass } from "@/utils/deck-analysis"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,7 @@ interface SavedDeck {
   is_public: boolean
   created_at: string
   updated_at: string
+  raiki_cards?: Record<string, number>
   users?: {
     x_name: string
     x_username: string
@@ -44,6 +47,7 @@ export default function SavedDecks() {
   const [publicDecks, setPublicDecks] = useState<SavedDeck[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingPublic, setIsLoadingPublic] = useState(false)
+  const [publicDeckFilters, setPublicDeckFilters] = useState<DeckFilter>({})
 
   // 保存されたデッキを取得
   const fetchSavedDecks = async () => {
@@ -82,7 +86,7 @@ export default function SavedDecks() {
   const fetchPublicDecks = async () => {
     setIsLoadingPublic(true)
     try {
-      const response = await fetch('/api/decks?type=public&limit=20')
+      const response = await fetch('/api/decks?type=public&limit=50')
       if (!response.ok) {
         throw new Error('Failed to fetch public decks')
       }
@@ -193,6 +197,28 @@ export default function SavedDecks() {
     )
   }
 
+  // 公開デッキのフィルタリング
+  const filteredPublicDecks = useMemo(() => {
+    if (!publicDecks.length) return []
+    
+    return publicDecks.filter(deck => {
+      // 作成者でフィルタリング
+      if (publicDeckFilters.creator && deck.users?.x_name !== publicDeckFilters.creator) {
+        return false
+      }
+      
+      // メイン色でフィルタリング
+      if (publicDeckFilters.mainColor && deck.raiki_cards) {
+        const mainColor = getMainColor(deck.raiki_cards)
+        if (mainColor.color !== publicDeckFilters.mainColor) {
+          return false
+        }
+      }
+      
+      return true
+    })
+  }, [publicDecks, publicDeckFilters])
+
   if (savedDecks.length === 0) {
     return (
       <div className="text-center py-8">
@@ -202,37 +228,48 @@ export default function SavedDecks() {
     )
   }
 
-  const renderDeckCard = (deck: SavedDeck, isPublicDeck = false) => (
-    <Card key={deck.id} className="w-full">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              {deck.deck_name}
-              {deck.is_public ? (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <Globe className="w-3 h-3" />
-                  公開
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  非公開
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription className="flex items-center gap-2">
-              {isPublicDeck && deck.users && (
-                <span className="flex items-center gap-1">
-                  <User className="w-3 h-3" />
-                  {deck.users.x_name}
+  const renderDeckCard = (deck: SavedDeck, isPublicDeck = false) => {
+    const mainColorInfo = getMainColor(deck.raiki_cards)
+    
+    return (
+      <Card key={deck.id} className="w-full">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                {deck.deck_name}
+                {deck.is_public ? (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    公開
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    非公開
+                  </Badge>
+                )}
+                {mainColorInfo.color !== 'unknown' && (
+                  <Badge 
+                    variant="outline" 
+                    className={`flex items-center gap-1 ${getColorBgClass(mainColorInfo.color)}`}
+                  >
+                    {mainColorInfo.displayName} {mainColorInfo.count}枚
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription className="flex items-center gap-2">
+                {isPublicDeck && deck.users && (
+                  <span className="flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {deck.users.x_name}
+                  </span>
+                )}
+                <span>
+                  作成日: {new Date(deck.created_at).toLocaleDateString('ja-JP')}
                 </span>
-              )}
-              <span>
-                作成日: {new Date(deck.created_at).toLocaleDateString('ja-JP')}
-              </span>
-            </CardDescription>
-          </div>
+              </CardDescription>
+            </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -287,7 +324,8 @@ export default function SavedDecks() {
         </span>
       </CardFooter>
     </Card>
-  )
+    )
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -331,8 +369,22 @@ export default function SavedDecks() {
               <p className="text-sm text-gray-500">他のユーザーが公開したデッキがここに表示されます</p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {publicDecks.map((deck) => renderDeckCard(deck, true))}
+            <div className="space-y-6">
+              <DeckFilters 
+                decks={publicDecks} 
+                onFilterChange={setPublicDeckFilters}
+              />
+              
+              {filteredPublicDecks.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600 mb-4">フィルター条件に一致するデッキがありません</p>
+                  <p className="text-sm text-gray-500">フィルター条件を変更してください</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {filteredPublicDecks.map((deck) => renderDeckCard(deck, true))}
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
