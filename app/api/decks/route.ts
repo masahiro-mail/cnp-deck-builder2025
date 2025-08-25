@@ -117,41 +117,74 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  console.log('=== GET /api/decks START ===')
   try {
+    console.log('1. Getting session...')
     const session = await getServerSession(authOptions)
     console.log('GET /api/decks - Session:', { 
       hasSession: !!session, 
-      userId: session?.user?.id 
+      userId: session?.user?.id,
+      userName: session?.user?.name,
+      userEmail: session?.user?.email
     })
     
     if (!session || !session.user?.id) {
+      console.log('❌ No session - returning 401')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log('2. Looking up user via Supabase...')
     // Supabase-js経由でユーザー情報取得
-    const user = await getUserByXIdSupabase(session.user.id)
-    console.log('User found:', user ? { id: user.id, x_id: user.x_id } : 'null')
+    let user
+    try {
+      user = await getUserByXIdSupabase(session.user.id)
+      console.log('✅ User lookup successful:', user ? { id: user.id, x_id: user.x_id } : 'null')
+    } catch (userError: any) {
+      console.error('❌ User lookup failed:', userError.message)
+      return NextResponse.json({ 
+        error: 'User lookup failed',
+        details: process.env.NODE_ENV === 'development' ? userError.message : undefined
+      }, { status: 500 })
+    }
     
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      console.log('❌ User not found in database - this might be the first login')
+      // ユーザーが見つからない場合は空の配列を返す（404ではなく）
+      return NextResponse.json([])
     }
 
+    console.log('3. Getting user decks via Supabase...')
     // Supabase-js経由でユーザーのデッキ一覧取得
-    const decks = await getUserDecksSupabase(user.id)
-    console.log('Decks retrieved:', decks?.length || 0)
+    let decks
+    try {
+      decks = await getUserDecksSupabase(user.id)
+      console.log('✅ Decks retrieved successfully:', decks?.length || 0)
+    } catch (decksError: any) {
+      console.error('❌ Decks retrieval failed:', decksError.message)
+      return NextResponse.json({ 
+        error: 'Failed to retrieve decks',
+        details: process.env.NODE_ENV === 'development' ? decksError.message : undefined
+      }, { status: 500 })
+    }
 
-    return NextResponse.json(decks)
+    console.log('=== GET /api/decks SUCCESS ===')
+    return NextResponse.json(decks || [])
   } catch (error: any) {
-    console.error('Error fetching decks:', error)
+    console.log('=== GET /api/decks ERROR ===')
+    console.error('❌ Error fetching decks:', error)
     console.error('Error details:', {
       message: error?.message,
       code: error?.code,
-      name: error?.name
+      name: error?.name,
+      stack: error?.stack?.substring(0, 500)
     })
     
     return NextResponse.json({ 
       error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+      timestamp: new Date().toISOString()
     }, { status: 500 })
+  } finally {
+    console.log('=== GET /api/decks END ===')
   }
 }
