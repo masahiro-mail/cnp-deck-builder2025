@@ -8,17 +8,18 @@ const getPool = () => {
   let connectionString = process.env.DATABASE_URL
 
   if (connectionString && process.env.NODE_ENV === 'production') {
+    // Transaction pooler用のSSL設定
     if (connectionString.includes('?')) {
-      connectionString += '&sslmode=require'
+      connectionString += '&sslmode=require&sslcert=&sslkey=&sslrootcert='
     } else {
-      connectionString += '?sslmode=require'
+      connectionString += '?sslmode=require&sslcert=&sslkey=&sslrootcert='
     }
   }
 
   return new Pool({
     connectionString,
     ssl: process.env.NODE_ENV === 'production' ? {
-      rejectUnauthorized: true,
+      rejectUnauthorized: false, // Transaction pooler用に変更
       requestCert: false,
       agent: false,
     } : false,

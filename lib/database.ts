@@ -13,11 +13,11 @@ if (connectionString && process.env.NODE_ENV === 'production') {
   }
 }
 
-// PostgreSQL接続プール - Supabase用設定
+// PostgreSQL接続プール - Supabase Transaction Pooler用設定
 const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: true,
+    rejectUnauthorized: false, // Transaction pooler用に変更
     requestCert: false,
     agent: false,
   } : false,
