@@ -112,6 +112,48 @@ export async function getUserByXIdSupabase(xId: string) {
   }
 }
 
+// デッキ削除（Supabase使用）
+export async function deleteDeckSupabase(deckId: number, userId: number): Promise<boolean> {
+  try {
+    console.log('Supabase: Deleting deck', { deckId, userId })
+    
+    // まず存在確認
+    const { data: existingDeck, error: checkError } = await supabase
+      .from('saved_decks')
+      .select('id, deck_name, user_id')
+      .eq('id', deckId)
+      .eq('user_id', userId)
+      .single()
+
+    if (checkError) {
+      if (checkError.code === 'PGRST116') {
+        console.log('Supabase: Deck not found or no permission')
+        return false
+      }
+      throw checkError
+    }
+
+    console.log('Supabase: Found deck to delete:', existingDeck)
+
+    // 削除実行
+    const { error: deleteError } = await supabase
+      .from('saved_decks')
+      .delete()
+      .eq('id', deckId)
+      .eq('user_id', userId)
+
+    if (deleteError) {
+      throw deleteError
+    }
+
+    console.log('Supabase: Deck deleted successfully')
+    return true
+  } catch (error: any) {
+    console.error('Supabase delete deck error:', error)
+    throw new Error(`Deck deletion failed: ${error.message}`)
+  }
+}
+
 // 接続テスト（Supabase使用）
 export async function testSupabaseConnection() {
   try {
