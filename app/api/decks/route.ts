@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { saveDeck, getUserDecks, getUserByXId } from '@/lib/database'
-import { upsertUserSupabase, saveDeckSupabase, getUserDecksSupabase, getUserByXIdSupabase } from '@/lib/supabase-client'
+import { upsertUserSupabase, saveDeckSupabase, getUserDecksSupabase, getUserByXIdSupabase, getPublicDecksSupabase } from '@/lib/supabase-client'
 
 export async function POST(request: NextRequest) {
   console.log('=== DECK SAVE API START ===')
@@ -119,6 +119,30 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   console.log('=== GET /api/decks START ===')
   try {
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type') // 'user' または 'public'
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const offset = parseInt(searchParams.get('offset') || '0')
+
+    console.log('Query params:', { type, limit, offset })
+
+    // 公開デッキを取得する場合
+    if (type === 'public') {
+      console.log('Getting public decks...')
+      try {
+        const publicDecks = await getPublicDecksSupabase(limit, offset)
+        console.log('✅ Public decks retrieved:', publicDecks?.length || 0)
+        return NextResponse.json(publicDecks || [])
+      } catch (publicError: any) {
+        console.error('❌ Public decks retrieval failed:', publicError.message)
+        return NextResponse.json({ 
+          error: 'Failed to retrieve public decks',
+          details: process.env.NODE_ENV === 'development' ? publicError.message : undefined
+        }, { status: 500 })
+      }
+    }
+
+    // ユーザーのデッキを取得する場合（デフォルト）
     console.log('1. Getting session...')
     const session = await getServerSession(authOptions)
     console.log('GET /api/decks - Session:', { 

@@ -154,6 +154,37 @@ export async function deleteDeckSupabase(deckId: number, userId: number): Promis
   }
 }
 
+// 公開デッキ取得（Supabase使用）
+export async function getPublicDecksSupabase(limit: number = 10, offset: number = 0) {
+  try {
+    console.log('Supabase: Getting public decks', { limit, offset })
+    
+    const { data, error } = await supabase
+      .from('saved_decks')
+      .select(`
+        *,
+        users!saved_decks_user_id_fkey(
+          x_name,
+          x_username,
+          x_icon_url
+        )
+      `)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      throw error
+    }
+
+    console.log('Supabase: Public decks retrieved:', data?.length || 0)
+    return data || []
+  } catch (error: any) {
+    console.error('Supabase get public decks error:', error)
+    throw new Error(`Failed to retrieve public decks: ${error.message}`)
+  }
+}
+
 // 接続テスト（Supabase使用）
 export async function testSupabaseConnection() {
   try {
