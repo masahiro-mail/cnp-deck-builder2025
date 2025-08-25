@@ -109,7 +109,7 @@ export default function SavedDecks() {
             
             toast({
               title: "デッキを削除しました",
-              description: `「${deckName}」を削除しました（${result.method || 'database'}経由）`,
+              description: `「${deckName}」を削除しました`,
             })
             return // 成功した場合は終了
           } else {
