@@ -69,32 +69,52 @@ export default function SavedDecks() {
   const deleteDeck = async (deckId: number, deckName: string) => {
     try {
       console.log('Attempting to delete deck:', deckId)
-      const response = await fetch('/api/decks/delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ deckId }),
-      })
-
-      console.log('Delete response status:', response.status)
-      console.log('Delete response ok:', response.ok)
-
-      if (!response.ok) {
-        const errorData = await response.text()
-        console.error('Delete response error:', errorData)
-        throw new Error(`Failed to delete deck: ${response.status} ${errorData}`)
-      }
-
-      const result = await response.json()
-      console.log('Delete result:', result)
-
-      setSavedDecks(savedDecks.filter(deck => deck.id !== deckId))
       
-      toast({
-        title: "デッキを削除しました",
-        description: `「${deckName}」を削除しました`,
-      })
+      // テスト用：複数のエンドポイントを試行
+      const endpoints = [
+        '/api/decks/delete',        // SSL無効化版
+        '/api/decks/delete-direct', // Direct connection版
+      ]
+      
+      let lastError = null
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`)
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ deckId }),
+          })
+          
+          console.log(`${endpoint} response status:`, response.status)
+          
+          if (response.ok) {
+            const result = await response.json()
+            console.log(`${endpoint} success:`, result)
+            
+            setSavedDecks(savedDecks.filter(deck => deck.id !== deckId))
+            
+            toast({
+              title: "デッキを削除しました",
+              description: `「${deckName}」を削除しました`,
+            })
+            return // 成功した場合は終了
+          } else {
+            const errorData = await response.text()
+            console.error(`${endpoint} failed:`, errorData)
+            lastError = new Error(`${endpoint}: ${response.status} ${errorData}`)
+          }
+        } catch (endpointError: any) {
+          console.error(`${endpoint} error:`, endpointError.message)
+          lastError = endpointError
+        }
+      }
+      
+      // 全てのエンドポイントが失敗した場合
+      throw lastError || new Error('All delete endpoints failed')
     } catch (error) {
       console.error('Error deleting deck:', error)
       toast({

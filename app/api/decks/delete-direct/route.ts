@@ -3,38 +3,43 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { Pool } from 'pg'
 
-// 直接データベース接続を作成
-const getPool = () => {
+// Direct Connection用の接続設定
+const getDirectPool = () => {
   let connectionString = process.env.DATABASE_URL
-
+  
+  // Direct connectionの場合は通常のSSL設定を使用
   if (connectionString && process.env.NODE_ENV === 'production') {
-    // Transaction pooler用のSSL無効化設定
+    // Direct connection用（pooler URLではなく直接接続URL用）
     if (connectionString.includes('?')) {
-      connectionString += '&sslmode=disable'
+      connectionString += '&sslmode=require'
     } else {
-      connectionString += '?sslmode=disable'
+      connectionString += '?sslmode=require'
     }
   }
 
   return new Pool({
     connectionString,
-    ssl: false, // SSL完全無効化
-    max: 10,
+    ssl: process.env.NODE_ENV === 'production' ? {
+      rejectUnauthorized: true, // Direct connection用
+      requestCert: false,
+      agent: false,
+    } : false,
+    max: 5, // Direct connectionは少なめに設定
     min: 0,
-    acquireTimeoutMillis: 60000,
-    idleTimeoutMillis: 600000,
+    acquireTimeoutMillis: 30000,
+    idleTimeoutMillis: 300000,
   })
 }
 
 export async function POST(request: NextRequest) {
-  console.log('=== SIMPLIFIED DELETE START ===')
+  console.log('=== DIRECT DELETE START ===')
   
   let pool: Pool | null = null
   let client = null
   
   try {
     const { deckId } = await request.json()
-    console.log('Delete request for deck ID:', deckId)
+    console.log('Direct delete request for deck ID:', deckId)
     
     // セッション確認
     const session = await getServerSession(authOptions)
@@ -50,10 +55,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid deck ID' }, { status: 400 })
     }
 
-    // データベース接続
-    pool = getPool()
+    // Direct connection試行
+    console.log('Creating direct connection pool...')
+    pool = getDirectPool()
     client = await pool.connect()
-    console.log('Database connected successfully')
+    console.log('Direct connection established')
 
     // セッションのX IDを使って直接ユーザーを検索
     console.log('Looking up user with X ID:', session.user.id)
@@ -104,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Deck deleted successfully',
+      message: 'Deck deleted successfully (direct connection)',
       deletedDeck: {
         id: deck.id,
         name: deck.deck_name
@@ -112,35 +118,36 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('=== SIMPLIFIED DELETE ERROR ===')
+    console.error('=== DIRECT DELETE ERROR ===')
     console.error('Error type:', error.constructor?.name)
     console.error('Error message:', error.message)
     console.error('Error code:', error.code)
     console.error('Error detail:', error.detail)
     
     return NextResponse.json({
-      error: 'Delete operation failed',
+      error: 'Direct delete operation failed',
       message: error.message,
       code: error.code,
-      type: error.constructor?.name
+      type: error.constructor?.name,
+      suggestion: 'Try using Direct Connection URL instead of Transaction pooler URL'
     }, { status: 500 })
   } finally {
     if (client) {
       try {
         client.release()
-        console.log('Client released')
+        console.log('Direct client released')
       } catch (releaseError) {
-        console.error('Error releasing client:', releaseError)
+        console.error('Error releasing direct client:', releaseError)
       }
     }
     if (pool) {
       try {
         await pool.end()
-        console.log('Pool ended')
+        console.log('Direct pool ended')
       } catch (poolError) {
-        console.error('Error ending pool:', poolError)
+        console.error('Error ending direct pool:', poolError)
       }
     }
-    console.log('=== SIMPLIFIED DELETE END ===')
+    console.log('=== DIRECT DELETE END ===')
   }
 }
