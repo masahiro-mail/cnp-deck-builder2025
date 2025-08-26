@@ -6,16 +6,7 @@ const providers = [
   TwitterProvider({
     clientId: process.env.TWITTER_CLIENT_ID || 'demo-client-id',
     clientSecret: process.env.TWITTER_CLIENT_SECRET || 'demo-client-secret',
-    version: "2.0",
-    authorization: {
-      url: "https://twitter.com/i/oauth2/authorize",
-      params: {
-        scope: "users.read tweet.read",
-        response_type: "code"
-      }
-    },
-    checks: ["state", "pkce"],
-    protection: "pkce"
+    version: "2.0"
   })
 ];
 
