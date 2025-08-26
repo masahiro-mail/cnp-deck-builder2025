@@ -25,6 +25,9 @@ export default function Header() {
           <Link href="/usage" className="hover:text-yellow-400">
             使用方法
           </Link>
+          <Link href="/privacy" className="hover:text-yellow-400 text-sm">
+            プライバシーポリシー
+          </Link>
           <AuthButton />
           <ModeToggle />
         </div>
@@ -65,6 +68,13 @@ export default function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 使用方法
+              </Link>
+              <Link 
+                href="/privacy" 
+                className="block py-3 px-4 hover:bg-gray-800 hover:text-yellow-400 rounded transition-colors text-sm"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                プライバシーポリシー
               </Link>
               <div className="flex items-center justify-between py-3 px-4">
                 <span className="text-gray-300">アカウント・設定</span>

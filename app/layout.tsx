@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import AuthSessionProvider from "@/components/session-provider"
 import { Toaster } from "@/components/ui/toaster"
 import Header from "@/components/header"
+import Footer from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -25,8 +26,11 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-gray-50 dark:bg-gray-950`}>
         <AuthSessionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <Header />
-            <main>{children}</main>
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
             <Toaster />
           </ThemeProvider>
         </AuthSessionProvider>
