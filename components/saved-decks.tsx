@@ -89,24 +89,38 @@ export default function SavedDecks() {
 
   // 公開デッキを取得
   const fetchPublicDecks = async () => {
+    console.log('🔍 [DEBUG] fetchPublicDecks called')
+    console.log('🔍 [DEBUG] Current publicDecks.length:', publicDecks.length)
+    
     setIsLoadingPublic(true)
     try {
+      console.log('🔍 [DEBUG] Fetching from /api/decks?type=public&limit=50')
       const response = await fetch('/api/decks?type=public&limit=50')
+      console.log('🔍 [DEBUG] Response status:', response.status)
+      console.log('🔍 [DEBUG] Response ok:', response.ok)
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch public decks')
+        const errorText = await response.text()
+        console.error('🔍 [DEBUG] Response error text:', errorText)
+        throw new Error(`Failed to fetch public decks: ${response.status} ${errorText}`)
       }
       
       const decks = await response.json()
+      console.log('🔍 [DEBUG] Received decks:', decks)
+      console.log('🔍 [DEBUG] Decks count:', decks?.length || 0)
+      
       setPublicDecks(decks)
+      console.log('🔍 [DEBUG] Public decks set successfully')
     } catch (error) {
-      console.error('Error fetching public decks:', error)
+      console.error('🔍 [DEBUG] Error in fetchPublicDecks:', error)
       toast({
         title: "公開デッキの取得に失敗しました",
-        description: "公開デッキの読み込み中にエラーが発生しました",
+        description: error instanceof Error ? error.message : "公開デッキの読み込み中にエラーが発生しました",
         variant: "destructive",
       })
     } finally {
       setIsLoadingPublic(false)
+      console.log('🔍 [DEBUG] fetchPublicDecks completed')
     }
   }
 
@@ -332,7 +346,17 @@ export default function SavedDecks() {
           <TabsTrigger value="saved">
             保存済みデッキ ({savedDecks.length})
           </TabsTrigger>
-          <TabsTrigger value="public" onClick={() => !publicDecks.length && fetchPublicDecks()}>
+          <TabsTrigger value="public" onClick={() => {
+            console.log('🔍 [DEBUG] Public tab clicked')
+            console.log('🔍 [DEBUG] publicDecks.length:', publicDecks.length)
+            console.log('🔍 [DEBUG] Condition (!publicDecks.length):', !publicDecks.length)
+            if (!publicDecks.length) {
+              console.log('🔍 [DEBUG] Calling fetchPublicDecks()')
+              fetchPublicDecks()
+            } else {
+              console.log('🔍 [DEBUG] Skipping fetchPublicDecks() - already have data')
+            }
+          }}>
             公開デッキ ({publicDecks.length})
           </TabsTrigger>
         </TabsList>
