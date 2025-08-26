@@ -107,9 +107,15 @@ export default function SavedDecks() {
       
       const decks = await response.json()
       console.log('🔍 [DEBUG] Received decks:', decks)
+      console.log('🔍 [DEBUG] Decks type:', typeof decks)
+      console.log('🔍 [DEBUG] Decks Array.isArray:', Array.isArray(decks))
       console.log('🔍 [DEBUG] Decks count:', decks?.length || 0)
       
-      setPublicDecks(decks)
+      // 配列であることを確認してから設定
+      const validDecks = Array.isArray(decks) ? decks : []
+      console.log('🔍 [DEBUG] Valid decks to set:', validDecks.length, validDecks)
+      
+      setPublicDecks(validDecks)
       console.log('🔍 [DEBUG] Public decks set successfully')
       
       // 状態更新確認用
@@ -132,6 +138,11 @@ export default function SavedDecks() {
   useEffect(() => {
     fetchSavedDecks()
   }, [session])
+
+  // 公開デッキ状態変更の監視
+  useEffect(() => {
+    console.log('🔍 [DEBUG] publicDecks state changed:', publicDecks.length, publicDecks)
+  }, [publicDecks])
 
   // デッキを削除
   const deleteDeck = async (deckId: number, deckName: string) => {
@@ -346,13 +357,13 @@ export default function SavedDecks() {
     <div className="w-full max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">デッキ管理</h2>
       
-      <Tabs defaultValue="saved" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="saved">
-            保存済みデッキ ({savedDecks.length})
-          </TabsTrigger>
-          <TabsTrigger value="public" onClick={() => {
-            console.log('🔍 [DEBUG] Public tab clicked')
+      <Tabs 
+        defaultValue="saved" 
+        className="w-full"
+        onValueChange={(value) => {
+          console.log('🔍 [DEBUG] Tab changed to:', value)
+          if (value === 'public') {
+            console.log('🔍 [DEBUG] Public tab selected')
             console.log('🔍 [DEBUG] publicDecks.length:', publicDecks.length)
             console.log('🔍 [DEBUG] Condition (!publicDecks.length):', !publicDecks.length)
             if (!publicDecks.length) {
@@ -361,7 +372,14 @@ export default function SavedDecks() {
             } else {
               console.log('🔍 [DEBUG] Skipping fetchPublicDecks() - already have data')
             }
-          }}>
+          }
+        }}
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="saved">
+            保存済みデッキ ({savedDecks.length})
+          </TabsTrigger>
+          <TabsTrigger value="public">
             公開デッキ ({publicDecks.length})
           </TabsTrigger>
         </TabsList>
