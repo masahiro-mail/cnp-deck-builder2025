@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import type { Card } from "@/types/card"
 import CardComponent from "./card"
 import { Button } from "@/components/ui/button"
@@ -20,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { generateDeckId } from "@/utils/deck-id-generator"
+import { generateDeckId, decodeDeckId } from "@/utils/deck-id-generator"
 import { Shuffle, Save, Download } from "lucide-react"
 
 interface DeckBuilderProps {
@@ -30,6 +31,7 @@ interface DeckBuilderProps {
 export default function DeckBuilder({ cards }: DeckBuilderProps) {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
   const [selectedColor, setSelectedColor] = useState<"blue" | "red" | "yellow" | "green">("blue")
   const [deck, setDeck] = useState<Card[]>([])
   const [filteredCards, setFilteredCards] = useState<Card[]>([])
@@ -38,12 +40,46 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
   const [deckName, setDeckName] = useState("")
   const [deckDescription, setDeckDescription] = useState("")
   const [isPublic, setIsPublic] = useState(false)
+  const [raikiCards, setRaikiCards] = useState({
+    blue: 3,
+    red: 3,
+    yellow: 3,
+    green: 3,
+    purple: 3
+  })
 
   // 色に基づいてカードをフィルタリング
   useEffect(() => {
     const filtered = cards.filter((card) => card.color === selectedColor)
     setFilteredCards(filtered)
   }, [selectedColor, cards])
+
+  // URLパラメータからデッキを読み込み
+  useEffect(() => {
+    const deckParam = searchParams?.get('deck')
+    if (deckParam && cards.length > 0) {
+      try {
+        const decodedDeck = decodeDeckId(deckParam, cards)
+        if (decodedDeck.length > 0) {
+          setDeck(decodedDeck)
+          // デッキの構成からレイキカードを推測して設定
+          const inferredRaikiCards = getRaikiCardsFromDeck(decodedDeck)
+          setRaikiCards(inferredRaikiCards)
+          toast({
+            title: "デッキを読み込みました",
+            description: `${decodedDeck.length}枚のカードとレイキカードを読み込みました`,
+          })
+        }
+      } catch (error) {
+        console.error('Error decoding deck:', error)
+        toast({
+          title: "デッキの読み込みに失敗",
+          description: "デッキIDが無効です",
+          variant: "destructive",
+        })
+      }
+    }
+  }, [searchParams, cards, toast])
 
   // 50枚のデッキを自動生成
   const generateDeck = () => {
@@ -87,6 +123,55 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
   // デッキをシャッフル
   const shuffleDeck = () => {
     setDeck([...deck].sort(() => Math.random() - 0.5))
+  }
+
+  // デッキから推測されるレイキカード構成を取得
+  const getRaikiCardsFromDeck = (deckCards: Card[]) => {
+    const colorCounts = {
+      blue: 0,
+      red: 0,
+      yellow: 0,
+      green: 0,
+      purple: 0
+    }
+    
+    // デッキの色の分布を計算
+    deckCards.forEach(card => {
+      if (card.color in colorCounts) {
+        colorCounts[card.color as keyof typeof colorCounts]++
+      }
+    })
+    
+    // 合計が15になるように調整
+    const total = Object.values(colorCounts).reduce((sum, count) => sum + count, 0)
+    if (total === 0) {
+      return { blue: 3, red: 3, yellow: 3, green: 3, purple: 3 }
+    }
+    
+    // 色の比率に基づいてレイキカードを分配（合計15枚）
+    const raikiCards = { blue: 0, red: 0, yellow: 0, green: 0, purple: 0 }
+    let remaining = 15
+    
+    // まず最低1枚ずつ配分
+    Object.keys(colorCounts).forEach(color => {
+      if (colorCounts[color as keyof typeof colorCounts] > 0 && remaining > 0) {
+        raikiCards[color as keyof typeof raikiCards] = 1
+        remaining--
+      }
+    })
+    
+    // 残りを比率に応じて配分
+    const sortedColors = Object.entries(colorCounts)
+      .filter(([_, count]) => count > 0)
+      .sort(([_, a], [__, b]) => b - a)
+    
+    for (let i = 0; i < remaining; i++) {
+      const colorIndex = i % sortedColors.length
+      const [color] = sortedColors[colorIndex]
+      raikiCards[color as keyof typeof raikiCards]++
+    }
+    
+    return raikiCards
   }
 
   // デッキをサーバーに保存
@@ -134,6 +219,7 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
           deck_id: deckId,
           description: deckDescription,
           is_public: isPublic,
+          raiki_cards: raikiCards,
         }),
       })
 
@@ -401,6 +487,54 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
               <div className="text-xl font-bold text-center">
                 {(deck.reduce((sum, card) => sum + card.cost, 0) / deck.length).toFixed(1)}
               </div>
+            </div>
+          </div>
+
+          {/* レイキカード設定 */}
+          <div className="bg-blue-50 p-4 rounded-lg shadow border-2 border-blue-200">
+            <h4 className="font-semibold mb-3 text-blue-800">レイキカード設定</h4>
+            <div className="grid grid-cols-5 gap-3">
+              {Object.entries(raikiCards).map(([color, count]) => (
+                <div key={color} className="text-center">
+                  <div className={`w-8 h-8 mx-auto mb-2 rounded-full ${
+                    color === 'blue' ? 'bg-blue-500' :
+                    color === 'red' ? 'bg-red-500' :
+                    color === 'yellow' ? 'bg-yellow-500' :
+                    color === 'green' ? 'bg-green-500' :
+                    'bg-purple-500'
+                  }`}></div>
+                  <div className="flex items-center justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-6 h-6 p-0"
+                      onClick={() => setRaikiCards(prev => ({
+                        ...prev,
+                        [color]: Math.max(0, prev[color as keyof typeof prev] - 1)
+                      }))}
+                      disabled={count === 0}
+                    >
+                      -
+                    </Button>
+                    <span className="mx-2 font-bold min-w-[20px]">{count}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-6 h-6 p-0"
+                      onClick={() => setRaikiCards(prev => ({
+                        ...prev,
+                        [color]: Math.min(15, prev[color as keyof typeof prev] + 1)
+                      }))}
+                      disabled={Object.values(raikiCards).reduce((sum, val) => sum + val, 0) >= 15}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="text-center mt-3 text-sm text-gray-600">
+              合計: {Object.values(raikiCards).reduce((sum, val) => sum + val, 0)}/15枚
             </div>
           </div>
         </div>
