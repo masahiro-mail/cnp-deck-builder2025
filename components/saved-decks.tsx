@@ -111,6 +111,11 @@ export default function SavedDecks() {
       
       setPublicDecks(decks)
       console.log('🔍 [DEBUG] Public decks set successfully')
+      
+      // 状態更新確認用
+      setTimeout(() => {
+        console.log('🔍 [DEBUG] After setState - publicDecks.length should be:', decks?.length || 0)
+      }, 100)
     } catch (error) {
       console.error('🔍 [DEBUG] Error in fetchPublicDecks:', error)
       toast({
@@ -379,6 +384,13 @@ export default function SavedDecks() {
         </TabsContent>
         
         <TabsContent value="public" className="mt-6">
+          {(() => {
+            console.log('🔍 [DEBUG] Rendering public tab content')
+            console.log('🔍 [DEBUG] isLoadingPublic:', isLoadingPublic)
+            console.log('🔍 [DEBUG] publicDecks.length:', publicDecks.length)
+            console.log('🔍 [DEBUG] publicDecks:', publicDecks)
+            return null
+          })()}
           {isLoadingPublic ? (
             <div className="text-center py-8">
               <p className="text-gray-600">公開デッキを読み込み中...</p>
