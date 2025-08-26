@@ -89,41 +89,22 @@ export default function SavedDecks() {
 
   // 公開デッキを取得
   const fetchPublicDecks = async () => {
-    console.log('🔍 [DEBUG] fetchPublicDecks called')
-    console.log('🔍 [DEBUG] Current publicDecks.length:', publicDecks.length)
-    
     setIsLoadingPublic(true)
     try {
-      console.log('🔍 [DEBUG] Fetching from /api/decks?type=public&limit=50')
       const response = await fetch('/api/decks?type=public&limit=50')
-      console.log('🔍 [DEBUG] Response status:', response.status)
-      console.log('🔍 [DEBUG] Response ok:', response.ok)
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('🔍 [DEBUG] Response error text:', errorText)
         throw new Error(`Failed to fetch public decks: ${response.status} ${errorText}`)
       }
       
       const decks = await response.json()
-      console.log('🔍 [DEBUG] Received decks:', decks)
-      console.log('🔍 [DEBUG] Decks type:', typeof decks)
-      console.log('🔍 [DEBUG] Decks Array.isArray:', Array.isArray(decks))
-      console.log('🔍 [DEBUG] Decks count:', decks?.length || 0)
       
       // 配列であることを確認してから設定
       const validDecks = Array.isArray(decks) ? decks : []
-      console.log('🔍 [DEBUG] Valid decks to set:', validDecks.length, validDecks)
-      
       setPublicDecks(validDecks)
-      console.log('🔍 [DEBUG] Public decks set successfully')
-      
-      // 状態更新確認用
-      setTimeout(() => {
-        console.log('🔍 [DEBUG] After setState - publicDecks.length should be:', decks?.length || 0)
-      }, 100)
     } catch (error) {
-      console.error('🔍 [DEBUG] Error in fetchPublicDecks:', error)
+      console.error('Error fetching public decks:', error)
       toast({
         title: "公開デッキの取得に失敗しました",
         description: error instanceof Error ? error.message : "公開デッキの読み込み中にエラーが発生しました",
@@ -131,7 +112,6 @@ export default function SavedDecks() {
       })
     } finally {
       setIsLoadingPublic(false)
-      console.log('🔍 [DEBUG] fetchPublicDecks completed')
     }
   }
 
@@ -139,10 +119,6 @@ export default function SavedDecks() {
     fetchSavedDecks()
   }, [session])
 
-  // 公開デッキ状態変更の監視
-  useEffect(() => {
-    console.log('🔍 [DEBUG] publicDecks state changed:', publicDecks.length, publicDecks)
-  }, [publicDecks])
 
   // デッキを削除
   const deleteDeck = async (deckId: number, deckName: string) => {
@@ -361,17 +337,8 @@ export default function SavedDecks() {
         defaultValue="saved" 
         className="w-full"
         onValueChange={(value) => {
-          console.log('🔍 [DEBUG] Tab changed to:', value)
-          if (value === 'public') {
-            console.log('🔍 [DEBUG] Public tab selected')
-            console.log('🔍 [DEBUG] publicDecks.length:', publicDecks.length)
-            console.log('🔍 [DEBUG] Condition (!publicDecks.length):', !publicDecks.length)
-            if (!publicDecks.length) {
-              console.log('🔍 [DEBUG] Calling fetchPublicDecks()')
-              fetchPublicDecks()
-            } else {
-              console.log('🔍 [DEBUG] Skipping fetchPublicDecks() - already have data')
-            }
+          if (value === 'public' && !publicDecks.length) {
+            fetchPublicDecks()
           }
         }}
       >
@@ -402,13 +369,6 @@ export default function SavedDecks() {
         </TabsContent>
         
         <TabsContent value="public" className="mt-6">
-          {(() => {
-            console.log('🔍 [DEBUG] Rendering public tab content')
-            console.log('🔍 [DEBUG] isLoadingPublic:', isLoadingPublic)
-            console.log('🔍 [DEBUG] publicDecks.length:', publicDecks.length)
-            console.log('🔍 [DEBUG] publicDecks:', publicDecks)
-            return null
-          })()}
           {isLoadingPublic ? (
             <div className="text-center py-8">
               <p className="text-gray-600">公開デッキを読み込み中...</p>
