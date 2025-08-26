@@ -12,7 +12,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { data: session } = useSession()
   
-  const isAdmin = session?.user?.name === '図解師★ウルフ'
+  const isAdmin = session?.user?.username?.toLowerCase() === 'diagram_wolf'
 
   return (
     <header className="bg-black dark:bg-black text-white">

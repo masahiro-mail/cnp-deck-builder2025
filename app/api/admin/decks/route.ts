@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase-client'
 
 // 管理者権限チェック
 function isAdmin(session: any): boolean {
-  return session?.user?.name === '図解師★ウルフ'
+  const username = session?.user?.username?.toLowerCase() || ''
+  return username === 'diagram_wolf'
 }
 
 export async function GET(request: NextRequest) {

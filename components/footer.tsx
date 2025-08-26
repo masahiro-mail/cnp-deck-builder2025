@@ -52,12 +52,12 @@ export default function Footer() {
                 <ExternalLink size={12} />
               </a>
               <a 
-                href="https://github.com/masahiro-mail/cnp-deck-builder2025/issues" 
+                href="https://x.com/Diagram_Wolf" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center space-x-2 text-sm hover:text-yellow-400 transition-colors"
               >
-                <span>バグ報告・要望</span>
+                <span>バグ報告・要望(DM)</span>
                 <ExternalLink size={12} />
               </a>
             </div>
@@ -76,7 +76,7 @@ export default function Footer() {
               </p>
             </div>
             <div className="text-xs text-gray-500 space-y-1">
-              <p>© 2025 CNP トレカ デッキビルダー（非公式ファンサイト）</p>
+              <p>© 2025 CNP トレカ デッキビルダー（非公式ファンサイト）- 作成者：図解師★ウルフ</p>
               <p>本サイトはCNP Trading Card Gameの公式サイトではありません</p>
               <p>Generated with Claude Code - Built with Next.js, Vercel, Supabase</p>
             </div>

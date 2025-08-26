@@ -57,7 +57,7 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   // 管理者権限チェック
-  const isAdmin = session?.user?.name === '図解師★ウルフ'
+  const isAdmin = session?.user?.username?.toLowerCase() === 'diagram_wolf'
 
   useEffect(() => {
     if (session === null || (session && !isAdmin)) {
@@ -170,7 +170,7 @@ export default function AdminPage() {
             管理者ダッシュボード
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            図解師★ウルフ専用の管理画面
+            Diagram_Wolf専用の管理画面
           </p>
         </div>
 
