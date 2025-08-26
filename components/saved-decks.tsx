@@ -48,6 +48,7 @@ export default function SavedDecks() {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingPublic, setIsLoadingPublic] = useState(false)
   const [publicDeckFilters, setPublicDeckFilters] = useState<DeckFilter>({})
+  const [publicDeckCount, setPublicDeckCount] = useState<number>(0)
 
   // フィルター変更のコールバック関数をメモ化
   const handlePublicDeckFilterChange = useCallback((filters: DeckFilter) => {
@@ -115,8 +116,22 @@ export default function SavedDecks() {
     }
   }
 
+  // 公開デッキ数のみを取得（軽量）
+  const fetchPublicDeckCount = async () => {
+    try {
+      const response = await fetch('/api/decks/count?type=public')
+      if (response.ok) {
+        const { count } = await response.json()
+        setPublicDeckCount(count || 0)
+      }
+    } catch (error) {
+      console.error('Error fetching public deck count:', error)
+    }
+  }
+
   useEffect(() => {
     fetchSavedDecks()
+    fetchPublicDeckCount() // 初回読み込み時に公開デッキ数を取得
   }, [session])
 
 
@@ -347,7 +362,7 @@ export default function SavedDecks() {
             保存済みデッキ ({savedDecks.length})
           </TabsTrigger>
           <TabsTrigger value="public">
-            公開デッキ ({publicDecks.length})
+            公開デッキ ({publicDecks.length || publicDeckCount})
           </TabsTrigger>
         </TabsList>
         

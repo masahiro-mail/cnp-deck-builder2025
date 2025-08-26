@@ -2,22 +2,26 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Menu, X } from "lucide-react"
+import { Menu, X, Shield } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 import AuthButton from "@/components/auth-button"
 import { Button } from "@/components/ui/button"
+import { useSession } from "next-auth/react"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { data: session } = useSession()
+  
+  const isAdmin = session?.user?.name === '図解師★ウルフ'
 
   return (
     <header className="bg-black dark:bg-black text-white">
       {/* デスクトップ表示 */}
       <div className="hidden md:flex justify-between items-center p-4">
-        <div className="flex items-center space-x-2">
+        <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
           <div className="bg-yellow-500 text-black font-bold px-2 py-1 rounded">CNP</div>
           <h1 className="text-xl font-bold">トレカ デッキビルダー</h1>
-        </div>
+        </Link>
         <div className="flex items-center space-x-4">
           <Link href="/saved-decks" className="hover:text-yellow-400">
             保存済みデッキ
@@ -28,6 +32,12 @@ export default function Header() {
           <Link href="/privacy" className="hover:text-yellow-400 text-sm">
             プライバシーポリシー
           </Link>
+          {isAdmin && (
+            <Link href="/admin" className="hover:text-yellow-400 text-red-400 flex items-center gap-1">
+              <Shield className="w-4 h-4" />
+              管理者
+            </Link>
+          )}
           <AuthButton />
           <ModeToggle />
         </div>
@@ -37,10 +47,10 @@ export default function Header() {
       <div className="md:hidden">
         {/* ヘッダーバー */}
         <div className="flex justify-between items-center p-4">
-          <div className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <div className="bg-yellow-500 text-black font-bold px-2 py-1 rounded text-sm">CNP</div>
             <h1 className="text-lg font-bold">トレカ デッキビルダー</h1>
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="icon"
@@ -76,6 +86,18 @@ export default function Header() {
               >
                 プライバシーポリシー
               </Link>
+              {isAdmin && (
+                <Link 
+                  href="/admin" 
+                  className="block py-3 px-4 hover:bg-gray-800 hover:text-yellow-400 rounded transition-colors text-red-400"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    管理者画面
+                  </div>
+                </Link>
+              )}
               <div className="flex items-center justify-between py-3 px-4">
                 <span className="text-gray-300">アカウント・設定</span>
                 <div className="flex items-center space-x-3">
