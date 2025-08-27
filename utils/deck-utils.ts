@@ -51,9 +51,9 @@ export const analyzeDeck = (deck: Card[]): string => {
 
   // SP値の分布を計算
   const spDistribution = {
-    sp2000: deck.filter((card) => card.sp === "2000").length,
-    sp1000: deck.filter((card) => card.sp === "1000").length,
-    spNone: deck.filter((card) => card.sp === "-").length,
+    sp2000: deck.filter((card) => card.sp === 2000).length,
+    sp1000: deck.filter((card) => card.sp === 1000).length,
+    spNone: deck.filter((card) => card.sp === "-" || card.sp === 0 || card.sp === null || card.sp === undefined).length,
   }
 
   // コスト分布を計算

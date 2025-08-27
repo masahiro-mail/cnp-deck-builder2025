@@ -6,7 +6,7 @@ export interface Card {
   color: CardColor
   cost: number
   bp?: number
-  sp?: number // 助太刀ポイント
+  sp?: number | string // 助太刀ポイント (数値または"-")
   ability?: string
   description?: string
   faction?: string
