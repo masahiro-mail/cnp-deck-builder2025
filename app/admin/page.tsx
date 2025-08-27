@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { Trash2, Users, Database, Shield, Globe, Lock, Download } from "lucide-react"
+import { Trash2, Users, Database, Shield, Globe, Lock } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,7 +55,6 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [decks, setDecks] = useState<AdminDeck[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isImporting, setIsImporting] = useState(false)
 
   // 管理者権限チェック
   const isAdmin = session?.user?.username?.toLowerCase() === 'diagram_wolf'
@@ -129,40 +128,6 @@ export default function AdminPage() {
     }
   }
 
-  const importRecommendedDecks = async () => {
-    setIsImporting(true)
-    try {
-      const response = await fetch('/api/admin/import-decks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to import decks')
-      }
-
-      const result = await response.json()
-      
-      toast({
-        title: "デッキインポート完了",
-        description: result.message || `${result.imported_count}個のデッキをインポートしました`,
-      })
-
-      // データを再取得
-      fetchAdminData()
-    } catch (error) {
-      console.error('Error importing decks:', error)
-      toast({
-        title: "インポートに失敗しました",
-        description: "推奨デッキのインポート中にエラーが発生しました",
-        variant: "destructive",
-      })
-    } finally {
-      setIsImporting(false)
-    }
-  }
 
   if (session === null) {
     return <div>Loading...</div>
@@ -258,39 +223,6 @@ export default function AdminPage() {
               </Card>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Download className="w-5 h-5" />
-                  推奨デッキインポート
-                </CardTitle>
-                <CardDescription>
-                  リポジトリ内の推奨デッキを図解師★ウルフアカウントで公開デッキとして一括登録します
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  onClick={importRecommendedDecks}
-                  disabled={isImporting}
-                  className="w-full"
-                >
-                  {isImporting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      インポート中...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      推奨デッキをインポート
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-gray-500 mt-2">
-                  既存のデッキは重複してインポートされません
-                </p>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="users" className="mt-6">
