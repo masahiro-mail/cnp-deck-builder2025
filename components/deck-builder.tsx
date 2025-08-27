@@ -58,26 +58,65 @@ export default function DeckBuilder({ cards }: DeckBuilderProps) {
   useEffect(() => {
     const deckParam = searchParams?.get('deck')
     if (deckParam && cards.length > 0) {
-      try {
-        const decodedDeck = decodeDeckId(deckParam, cards)
-        if (decodedDeck.length > 0) {
-          setDeck(decodedDeck)
-          // デッキの構成からレイキカードを推測して設定
-          const inferredRaikiCards = getRaikiCardsFromDeck(decodedDeck)
-          setRaikiCards(inferredRaikiCards)
+      const loadDeckWithRaikiCards = async () => {
+        try {
+          // まずデッキをデコード
+          const decodedDeck = decodeDeckId(deckParam, cards)
+          if (decodedDeck.length > 0) {
+            setDeck(decodedDeck)
+
+            // データベースからレイキカード情報を取得を試行
+            try {
+              const response = await fetch(`/api/deck/${deckParam}`)
+              if (response.ok) {
+                const data = await response.json()
+                if (data.deck && data.deck.raiki_cards) {
+                  // データベースからレイキカード情報を復元
+                  setRaikiCards(data.deck.raiki_cards)
+                  toast({
+                    title: "デッキを読み込みました",
+                    description: `${decodedDeck.length}枚のカードとレイキカード設定を読み込みました`,
+                  })
+                } else {
+                  // データベースにない場合は推測
+                  const inferredRaikiCards = getRaikiCardsFromDeck(decodedDeck)
+                  setRaikiCards(inferredRaikiCards)
+                  toast({
+                    title: "デッキを読み込みました",
+                    description: `${decodedDeck.length}枚のカードを読み込み、レイキカードを推測しました`,
+                  })
+                }
+              } else {
+                // API呼び出し失敗時は推測
+                const inferredRaikiCards = getRaikiCardsFromDeck(decodedDeck)
+                setRaikiCards(inferredRaikiCards)
+                toast({
+                  title: "デッキを読み込みました",
+                  description: `${decodedDeck.length}枚のカードを読み込み、レイキカードを推測しました`,
+                })
+              }
+            } catch (apiError) {
+              // API呼び出しエラー時は推測
+              console.warn('Failed to fetch deck raiki cards:', apiError)
+              const inferredRaikiCards = getRaikiCardsFromDeck(decodedDeck)
+              setRaikiCards(inferredRaikiCards)
+              toast({
+                title: "デッキを読み込みました",
+                description: `${decodedDeck.length}枚のカードを読み込み、レイキカードを推測しました`,
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Error decoding deck:', error)
           toast({
-            title: "デッキを読み込みました",
-            description: `${decodedDeck.length}枚のカードとレイキカードを読み込みました`,
+            title: "デッキの読み込みに失敗",
+            description: "デッキIDが無効です",
+            variant: "destructive",
           })
         }
-      } catch (error) {
-        console.error('Error decoding deck:', error)
-        toast({
-          title: "デッキの読み込みに失敗",
-          description: "デッキIDが無効です",
-          variant: "destructive",
-        })
       }
+
+      loadDeckWithRaikiCards()
     }
   }, [searchParams, cards, toast])
 
