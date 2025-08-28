@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "Bash(rm:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git add:*)",
+      "Bash(cp:*)",
+      "Bash(copy \"..\\worklog.md\" .)",
+      "Bash(git push:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(sed:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm update:*)",
+      "Bash(pnpm build:*)",
+      "Bash(mv:*)",
+      "WebSearch",
+      "WebSearch",
+      "Bash(git init:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
