@@ -22,9 +22,27 @@
       "Bash(mv:*)",
       "WebSearch",
       "WebSearch",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(timeout 30 git push origin main)",
+      "Bash(pnpm dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(git commit:*)",
+      "Bash(timeout:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs = require('fs'); const date = new Date().toISOString().split('T')[0]; const time = new Date().toLocaleTimeString('ja-JP', {timeZone:'Asia/Tokyo'}); const logEntry = '\\n\\n### セッション終了 - ' + date + ' ' + time + '\\n\\n**実施作業**: セッション完了\\n\\n🚀 **Generated with [Claude Code](https://claude.ai/code)**\\n\\nCo-Authored-By: Claude <noreply@anthropic.com>\\n'; fs.appendFileSync('worklog.md', logEntry);\""
+          }
+        ]
+      }
+    ]
   }
 }
