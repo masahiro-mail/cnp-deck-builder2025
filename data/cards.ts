@@ -1177,7 +1177,7 @@ export const cards: Card[] = [
     cardNumber: "BT1-59",
     colorBalance: "赤3",
     colorCost: 3,
-    colorlessCost: 4,
+    colorlessCost: 3,
     effectType: ["特殊召喚", "デッキドロー"],
     pack: "次元の訪問者",
   },
