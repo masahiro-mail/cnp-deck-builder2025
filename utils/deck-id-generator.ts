@@ -1,5 +1,13 @@
 // デッキIDを生成するためのユーティリティ関数
 
+// builderDeckId のレイキ情報（|R.....）仕様
+const REIKI_COLOR_ORDER = ["blue", "red", "yellow", "green", "purple"] as const
+type ReikiColor = (typeof REIKI_COLOR_ORDER)[number]
+const REQUIRED_REIKI_CARDS = 15
+
+// このユーティリティで扱う最小限のカード型（デバッグ/互換コード用）
+type Card = { id: string }
+
 // 2桁の数字から文字へのマッピング
 const DIGIT_PAIRS_TO_CHAR: Record<string, string> = {
   "00": "a",
@@ -33,6 +41,45 @@ const DIGIT_PAIRS_TO_CHAR: Record<string, string> = {
 const CHAR_TO_DIGIT_PAIRS: Record<string, string> = {}
 for (const [digits, char] of Object.entries(DIGIT_PAIRS_TO_CHAR)) {
   CHAR_TO_DIGIT_PAIRS[char] = digits
+}
+
+function stripReikiMeta(builderDeckId: string): string {
+  return builderDeckId.replace(/\|R[0-9a-fA-F]{5}$/, "")
+}
+
+export function parseReikiMeta(builderDeckId: string): Partial<Record<ReikiColor, number>> | null {
+  const m = builderDeckId.match(/\|R([0-9a-fA-F]{5})$/)
+  if (!m) return null
+  const digits = m[1]
+  const counts: Partial<Record<ReikiColor, number>> = {}
+  for (let i = 0; i < REIKI_COLOR_ORDER.length; i++) {
+    const color = REIKI_COLOR_ORDER[i]
+    counts[color] = Number.parseInt(digits[i], 16)
+  }
+  const total = REIKI_COLOR_ORDER.reduce((sum, color) => sum + (counts[color] ?? 0), 0)
+  if (total !== REQUIRED_REIKI_CARDS) {
+    throw new Error(`レイキ枚数の合計が${REQUIRED_REIKI_CARDS}枚ではありません（${total}枚）`)
+  }
+  return counts
+}
+
+export function buildReikiMeta(raikiCards: Partial<Record<ReikiColor, number>>): string {
+  const digits = REIKI_COLOR_ORDER.map((color) => {
+    const raw = raikiCards[color]
+    const value = typeof raw === "number" && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+    return value
+  })
+  const total = digits.reduce((a, b) => a + b, 0)
+  if (total !== REQUIRED_REIKI_CARDS) {
+    throw new Error(`レイキ枚数の合計が${REQUIRED_REIKI_CARDS}枚ではありません（${total}枚）`)
+  }
+  return `R${digits.map((n) => n.toString(16).toUpperCase()).join("")}`
+}
+
+export function generateBuilderDeckId(cardIds: string[], raikiCards: Partial<Record<ReikiColor, number>>): string {
+  const deckId = generateDeckId(cardIds)
+  const reikiMeta = buildReikiMeta(raikiCards)
+  return `${deckId}|${reikiMeta}`
 }
 
 // デッキ全体からIDを生成する関数（新形式BKプレフィックス）
@@ -136,6 +183,8 @@ function generateDeckIdWithPrefix(cardIds: string[], prefix: 'bt' | 'bk'): strin
 
 // デッキIDからカードIDのリストを復元する関数
 export function decodeDeckId(deckId: string, allCardIds: string[]): string[] {
+  // builderDeckId（|R.....）が渡ってきてもデコードできるようにする
+  deckId = stripReikiMeta(deckId)
   // プレフィックスを判定して適切な処理を選択
   if (deckId.startsWith("bk")) {
     return decodeDeckIdWithPrefix(deckId, allCardIds, 'bk')
@@ -148,45 +197,36 @@ export function decodeDeckId(deckId: string, allCardIds: string[]): string[] {
 }
 
 // レガシー形式のデコード関数（既存IDとの互換性用）
-function decodeDeckIdLegacy(deckId: string, allCards: Card[]): Card[] {
+function decodeDeckIdLegacy(deckId: string, allCardIds: string[]): string[] {
   if (!deckId.startsWith('bt') || deckId.length < 58) {
     return []
   }
 
-  const cardCounts: number[] = new Array(116).fill(0)
   const dataString = deckId.slice(2)
-  
-  // 2文字ずつペアにして処理（116枚対応）
-  for (let i = 0; i < dataString.length - 1; i += 2) {
-    const char1 = dataString[i]
-    const char2 = dataString[i + 1]
-    
-    if (charToNumber[char1] !== undefined && charToNumber[char2] !== undefined) {
-      const cardIndex1 = Math.floor(i / 2) * 2
-      const cardIndex2 = cardIndex1 + 1
-      
-      if (cardIndex1 < 116) cardCounts[cardIndex1] = charToNumber[char1]
-      if (cardIndex2 < 116) cardCounts[cardIndex2] = charToNumber[char2]
+  const cardCounts: number[] = []
+  for (let i = 0; i < dataString.length; i++) {
+    const char = dataString[i]
+    const digitPair = CHAR_TO_DIGIT_PAIRS[char]
+    if (digitPair) {
+      cardCounts.push(Number.parseInt(digitPair[0], 10))
+      cardCounts.push(Number.parseInt(digitPair[1], 10))
+    } else {
+      console.warn(`Invalid character in legacy deck ID: ${char} at position ${i}`)
+      cardCounts.push(0)
+      cardCounts.push(0)
     }
+    if (cardCounts.length >= 116) break
   }
+  while (cardCounts.length < 116) cardCounts.push(0)
 
-  // カード配列に変換
-  const deck: Card[] = []
+  const result: string[] = []
   cardCounts.forEach((count, index) => {
-    if (count > 0) {
-      const cardId = findCardIdByInternalNumber(index + 1, allCards)
-      if (cardId) {
-        const card = allCards.find(c => c.id === cardId)
-        if (card) {
-          for (let i = 0; i < count; i++) {
-            deck.push(card)
-          }
-        }
-      }
-    }
+    if (count <= 0) return
+    const cardId = findCardIdByInternalNumber(index + 1, allCardIds, "bt")
+    if (!cardId) return
+    for (let i = 0; i < count; i++) result.push(cardId)
   })
-
-  return deck
+  return result
 }
 
 // 内部関数：プレフィックスを指定してデコード
@@ -208,10 +248,6 @@ function decodeDeckIdWithPrefix(deckId: string, allCardIds: string[], prefix: 'b
     // 長さチェック（柔軟に対応）
     if (deckId.length < expectedMinLength) {
       console.warn(`Deck ID is too short: ${deckId.length}, expected at least ${expectedMinLength} characters. Trying legacy format...`)
-      // レガシー形式（短いID）の場合、旧ロジックを使用
-      if (deckId.length >= 58 && deckId.length <= 60) {
-        return decodeDeckIdLegacy(deckId, allCards)
-      }
       return []
     }
 
@@ -349,12 +385,10 @@ export function formatDeckId(id: string): string {
 // デバッグ用の関数：デッキIDの内容を解析して表示
 export function analyzeDeckId(deckId: string): string {
   try {
-    // 先頭の "bt" を削除
-    if (deckId.startsWith("bt")) {
-      deckId = deckId.substring(2)
-    } else {
-      return `デッキIDが "bt" で始まっていません: ${deckId}`
-    }
+    deckId = stripReikiMeta(deckId)
+    const prefix: "bt" | "bk" | "" = deckId.startsWith("bk") ? "bk" : deckId.startsWith("bt") ? "bt" : ""
+    if (!prefix) return `デッキIDが "bt" または "bk" で始まっていません: ${deckId}`
+    deckId = deckId.substring(prefix.length)
 
     // 後方互換性：古い形式と新形式を判定
     const isLegacyFormat = deckId.length <= 59

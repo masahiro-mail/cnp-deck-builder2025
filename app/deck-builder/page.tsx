@@ -35,8 +35,9 @@ import {
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { Card } from "@/types/card"
-import { generateDeckId, decodeDeckId } from "@/utils/deck-id-generator"
+import { generateBuilderDeckId, decodeDeckId, parseReikiMeta } from "@/utils/deck-id-generator"
 import { analyzeDeck, loadDecksFromStorage, getRecommendedDecks } from "@/utils/deck-utils"
 import { sortCards } from "@/utils/card-sort"
 import SavedDeckItem from "@/components/saved-deck-item"
@@ -88,6 +89,7 @@ export default function DeckBuilderPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [cardType, setCardType] = useState<string>("all")
   const [cardColor, setCardColor] = useState<string>("all")
+  const [onlySelectedCards, setOnlySelectedCards] = useState<boolean>(false)
   const [cardRarity, setCardRarity] = useState<string>("all")
   const [cardEffectType, setCardEffectType] = useState<string>("all")
   const [cardPack, setCardPack] = useState<string>("all")
@@ -114,6 +116,8 @@ export default function DeckBuilderPage() {
   const [deckSearchTerm, setDeckSearchTerm] = useState("")
   const [showSavedDecks, setShowSavedDecks] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [cnpOverwriteDeckId, setCnpOverwriteDeckId] = useState<string>("")
+  const [cnpReturnTo, setCnpReturnTo] = useState<string>("")
 
   // 新しい機能のためのstate
   const [isDeckLoadDialogOpen, setIsDeckLoadDialogOpen] = useState(false)
@@ -169,7 +173,7 @@ export default function DeckBuilderPage() {
     setIsSaving(true)
 
     try {
-      const deckId = generateDeckId(deck.map(card => card.id))
+      const deckId = generateBuilderDeckId(deck.map((card) => card.id), raikiCards)
 
       const response = await fetch('/api/decks', {
         method: 'POST',
@@ -225,7 +229,7 @@ export default function DeckBuilderPage() {
       return
     }
 
-    const generatedId = generateDeckId(deck.map(card => card.id))
+    const generatedId = generateBuilderDeckId(deck.map((card) => card.id), raikiCards)
     
     try {
       await navigator.clipboard.writeText(generatedId)
@@ -420,11 +424,12 @@ export default function DeckBuilderPage() {
 
     const url = new URL(window.location.href)
     url.searchParams.delete("deck")
+    url.searchParams.delete("builderDeckId")
     window.history.replaceState({}, "", url.toString())
   }
 
   const openSaveDialog = () => {
-    const generatedId = generateDeckId(deck.map((card) => card.id))
+    const generatedId = generateBuilderDeckId(deck.map((card) => card.id), raikiCards)
     setCustomDeckId(generatedId)
     setDeckName("My Deck")
     setIsSaveDialogOpen(true)
@@ -442,7 +447,7 @@ export default function DeckBuilderPage() {
       }
     }
 
-    const generatedId = generateDeckId(deck.map((card) => card.id))
+    const generatedId = generateBuilderDeckId(deck.map((card) => card.id), raikiCards)
     const finalDeckId = customDeckId.trim() || generatedId
 
     const existingDecks = loadDecksFromStorage()
@@ -502,9 +507,52 @@ export default function DeckBuilderPage() {
     setSavedDecks(mergedDecks)
 
     const params = new URLSearchParams(window.location.search)
+    const builderDeckId = params.get("builderDeckId")
     const urlDeckId = params.get("deck")
+    const overwriteDeckId = params.get("overwriteDeckId")
+    const returnTo = params.get("returnTo")
+    if (overwriteDeckId) setCnpOverwriteDeckId(overwriteDeckId)
+    if (returnTo) setCnpReturnTo(returnTo)
 
-    if (urlDeckId) {
+    const loadFromExternalId = (id: string) => {
+      try {
+        const reiki = parseReikiMeta(id)
+        if (reiki) setRaikiCards((prev) => ({ ...prev, ...reiki }))
+        const cardIds = decodeDeckId(id, allCardIds)
+        const loadedDeck = cardIds
+          .map((cardId) => cards.find((c) => c.id === cardId) || null)
+          .filter((card): card is Card => card !== null)
+        if (loadedDeck.length === 0) return
+
+        setDeck(loadedDeck)
+        setDeckId(id)
+        setCustomDeckId(id)
+        setIsDecodedDeck(true)
+        setCardColor("all")
+        // トレカアプリから編集で開いた直後は「選択カードのみ」をOFFにする
+        setOnlySelectedCards(false)
+        setDeckName("復元されたデッキ")
+
+        const counts: Record<string, number> = {}
+        loadedDeck.forEach((card) => {
+          counts[card.id] = (counts[card.id] || 0) + 1
+        })
+        setCardCounts(counts)
+        setDeckAnalysis(analyzeDeck(loadedDeck))
+        localStorage.setItem("lastUsedDeckId", id)
+
+        const url = new URL(window.location.href)
+        url.searchParams.set("builderDeckId", id)
+        url.searchParams.delete("deck")
+        window.history.replaceState({}, "", url.toString())
+      } catch (error) {
+        console.error("Failed to load external deck ID:", error)
+      }
+    }
+
+    if (builderDeckId) {
+      loadFromExternalId(builderDeckId)
+    } else if (urlDeckId) {
       loadSavedDeck(urlDeckId)
     } else {
       const lastUsedDeckId = localStorage.getItem("lastUsedDeckId")
@@ -533,12 +581,12 @@ export default function DeckBuilderPage() {
     }
 
     if (cardColor !== "all") {
-      if (cardColor === "deck") {
-        const deckCardIds = deck.map((card) => card.id)
-        result = result.filter((card) => deckCardIds.includes(card.id))
-      } else {
-        result = result.filter((card) => card.color === cardColor)
-      }
+      result = result.filter((card) => card.color === cardColor)
+    }
+
+    if (onlySelectedCards) {
+      // 「選択カードのみ」= デッキに1枚以上入っているカードのみ
+      result = result.filter((card) => (cardCounts[card.id] ?? 0) > 0)
     }
 
     if (cardRarity !== "all") {
@@ -553,16 +601,11 @@ export default function DeckBuilderPage() {
       result = result.filter((card) => card.pack === cardPack)
     }
 
-    result = result.map((card) => {
-      if (card.rarity === "SR") {
-        return { ...card, rarity: "RRR" }
-      }
-      return card
-    })
+    // rarity が "SR" になることは無い前提のため、変換処理は不要
 
     const sortedResult = sortCards(result, sortBy, sortOrder)
     setAvailableCards(sortedResult)
-  }, [searchTerm, cardType, cardColor, cardRarity, cardEffectType, cardPack, sortBy, sortOrder, deck])
+  }, [searchTerm, cardType, cardColor, onlySelectedCards, cardCounts, cardRarity, cardEffectType, cardPack, sortBy, sortOrder, deck])
 
   useEffect(() => {
     if (deck.length > 0) {
@@ -571,6 +614,49 @@ export default function DeckBuilderPage() {
       setDeckAnalysis("")
     }
   }, [deck])
+
+  const getCnpAppOrigin = () => {
+    const env = process.env.NEXT_PUBLIC_CNP_APP_ORIGIN
+    if (env && env.trim()) return env.trim().replace(/\/$/, "")
+    if (typeof window !== "undefined" && window.location.hostname === "localhost") return "http://localhost:3000"
+    return ""
+  }
+
+  const safeReturnToPath = (value: string) => (value.startsWith("/") ? value : "")
+
+  const openCnpAppForImport = () => {
+    const origin = getCnpAppOrigin()
+    if (!origin) {
+      toast({
+        title: "連携先URLが未設定です",
+        description: "NEXT_PUBLIC_CNP_APP_ORIGIN を設定してください",
+        variant: "destructive",
+      })
+      return
+    }
+    if (deck.length === 0) {
+      toast({
+        title: "デッキが空です",
+        description: "まずデッキを作成してください",
+        variant: "destructive",
+      })
+      return
+    }
+    const builderDeckId = generateBuilderDeckId(deck.map((card) => card.id), raikiCards)
+    const url = new URL(`${origin}/deck/add`)
+    url.searchParams.set("builderDeckId", builderDeckId)
+    if (cnpOverwriteDeckId) url.searchParams.set("overwriteDeckId", cnpOverwriteDeckId)
+    const path = safeReturnToPath(cnpReturnTo)
+    if (path) url.searchParams.set("returnTo", path)
+    window.open(url.toString(), "CNPTCGapp")
+  }
+
+  const openCnpAppReturnTo = () => {
+    const origin = getCnpAppOrigin()
+    const path = safeReturnToPath(cnpReturnTo)
+    if (!origin || !path) return
+    window.location.href = `${origin}${path}`
+  }
 
   const handleCardClick = (card: Card) => {
     setSelectedCard(card)
@@ -632,6 +718,8 @@ export default function DeckBuilderPage() {
         .filter((card): card is Card => card !== null)
     } else {
       try {
+        const reiki = parseReikiMeta(deckIdToImport)
+        if (reiki) setRaikiCards((prev) => ({ ...prev, ...reiki }))
         const cardIds = decodeDeckId(deckIdToImport, allCardIds)
 
         if (cardIds.length === 0) {
@@ -663,7 +751,7 @@ export default function DeckBuilderPage() {
     setCustomDeckId(deckIdToImport)
     setIsDecodedDeck(!isLocalDeckFound)
     setImportDeckId("")
-    setCardColor("deck")
+    setCardColor("all")
 
     if (isLocalDeckFound) {
       setDeckName(savedDecks[deckIdToImport].name)
@@ -684,7 +772,8 @@ export default function DeckBuilderPage() {
     localStorage.setItem("lastUsedDeckId", deckIdToImport)
 
     const url = new URL(window.location.href)
-    url.searchParams.set("deck", deckIdToImport)
+    url.searchParams.set("builderDeckId", deckIdToImport)
+    url.searchParams.delete("deck")
     window.history.replaceState({}, "", url.toString())
   }
 
@@ -696,7 +785,7 @@ export default function DeckBuilderPage() {
     setDeckId(id)
     setCustomDeckId(id)
     setIsDecodedDeck(false)
-    setCardColor("deck")
+    setCardColor("all")
 
     if (savedDecks[id]) {
       setDeckName(savedDecks[id].name)
@@ -713,7 +802,8 @@ export default function DeckBuilderPage() {
     localStorage.setItem("lastUsedDeckId", id)
 
     const url = new URL(window.location.href)
-    url.searchParams.set("deck", id)
+    url.searchParams.set("builderDeckId", id)
+    url.searchParams.delete("deck")
     window.history.replaceState({}, "", url.toString())
   }
 
@@ -781,6 +871,18 @@ export default function DeckBuilderPage() {
   return (
     <div className="min-h-screen tech-pattern p-4 dark:bg-gray-900 bg-gray-100">
       <div className="max-w-7xl mx-auto">
+        {safeReturnToPath(cnpReturnTo) ? (
+          <div className="mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openCnpAppReturnTo}
+              className="bg-white dark:bg-gray-900 border-gray-200 dark:border-blue-900 text-gray-700 dark:text-blue-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              戻る
+            </Button>
+          </div>
+        ) : null}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左側: デッキ情報 */}
           <div className="lg:col-span-1 bg-white dark:bg-black border border-gray-200 dark:border-blue-900 rounded-lg shadow-lg p-4 dark:neon-border">
@@ -833,6 +935,19 @@ export default function DeckBuilderPage() {
                 >
                   <FileInput className="h-4 w-4 mr-1" />
                   ID入力
+                </Button>
+              </div>
+
+              <div className="mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openCnpAppForImport}
+                  disabled={deck.length === 0}
+                  className="w-full bg-white dark:bg-blue-900 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 hover:text-blue-700 dark:hover:text-blue-200"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  トレカアプリでインポート
                 </Button>
               </div>
             </div>
@@ -990,7 +1105,6 @@ export default function DeckBuilderPage() {
                           <SelectItem value="green">緑</SelectItem>
                           <SelectItem value="yellow">黄</SelectItem>
                           <SelectItem value="purple">紫</SelectItem>
-                          <SelectItem value="deck">デッキのカード</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1056,6 +1170,21 @@ export default function DeckBuilderPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* 収録パックの右（=レアリティの下）に配置 */}
+                    <div className="flex items-center gap-2 mt-7">
+                      <Checkbox
+                        id="onlySelectedCards"
+                        checked={onlySelectedCards}
+                        onCheckedChange={(v) => setOnlySelectedCards(v === true)}
+                      />
+                      <Label
+                        htmlFor="onlySelectedCards"
+                        className="text-sm font-medium text-gray-700 dark:text-blue-300"
+                      >
+                        選択カードのみ
+                      </Label>
                     </div>
                   </div>
                 )}
@@ -1216,7 +1345,7 @@ export default function DeckBuilderPage() {
                               {card.bp || "-"}
                             </td>
                             <td className="px-4 py-3 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 whitespace-nowrap">
-                              {card.sp || card.ap || "-"}
+                              {card.sp ?? "-"}
                             </td>
                             <td className="px-4 py-3 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 whitespace-nowrap">
                               {card.effectType ? card.effectType.join(", ") : "-"}
