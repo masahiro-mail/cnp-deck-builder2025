@@ -172,3 +172,4 @@ types/next-auth.d.ts                  # NextAuth型定義拡張
 - データベース接続プール設定
 - セッション有効期限
 - OAuth スコープ設定
+
